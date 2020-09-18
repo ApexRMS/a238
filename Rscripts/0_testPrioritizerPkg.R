@@ -70,9 +70,7 @@ protectedAreas <- raster(file.path(outDir, "protectedAreasFocalArea.tif"))
 #values so 0 = protected, 1 = unprotected, reflecting cost of inclusion in network
   # Mask protected areas to naturalAreasFocal
 protectedAreasFocal <-  mask(protectedAreas, naturalAreasFocal)  
-
-
-## Generate input files for prioritizR
+protectedAreasBinaryFocal <-  reclassify(protectedAreasFocal, rcl=matrix(c(0, 1, 1, NA), ncol=2, byrow=T))
 
 ## Load files for all species using for loop
 specieslist <- c("BLBR", "MAAM", "URAM", "RANA", "PLCI")
@@ -111,25 +109,28 @@ allSuitabilities <- stack(BLBR_habitatSuitability, MAAM_habitatSuitability, URAM
  # Single species example 
  # Default, fast conditions
  
-test <- problem(protectedAreasFocal, features = BLBR_habitatSuitability) %>%
+test <- problem(naturalAreasBinaryFocal, features = BLBR_habitatSuitability) %>%
 			add_min_set_objective() %>%
       		add_relative_targets(0.05) %>%
       		add_binary_decisions() %>%
       		add_default_solver(gap = 0)
      		
-P1 <- solve(test)
- #  user  system elapsed 
- #  1.445   0.401   2.049 
+P1 <- system.time(solve(test))
+ #     user  system elapsed 
+  #  5.542   0.749   6.292
 spplot(P1)
 
   # To incorporate existing protected areas as constraint (i.e. they must be locked in to the final example)
-test2 <- problem(protectedAreasFocal, features = BLBR_habitatSuitability) %>%
+test2 <- problem(naturalAreasBinaryFocal, features = BLBR_habitatSuitability) %>%
 			add_min_set_objective() %>%
       		add_relative_targets(0.05) %>%
       		add_binary_decisions() %>%
       		add_default_solver(gap = 0) %>%
-      		add_locked_in_constraints(protectedAreasFocal)
+      		add_locked_in_constraints(protectedAreasBinaryFocal)
 P2 <- solve(test2)
+#   user  system elapsed 
+#  5.410   0.783   6.090 
+ spplot(P2)
 
 
 # Multiple species problem
@@ -139,7 +140,8 @@ testMulti <- problem(naturalAreasBinaryFocal, features = allSuitabilities) %>%
       			add_binary_decisions() %>%
       			add_default_solver(gap = 0)
      			
-PMulti<- solve(testMulti)
+system.time(PMulti <- solve(testMulti))
+ #time 394 seconds
 spplot(PMulti)
 
 # this includes constraints that 'lock_in' protected areas
@@ -148,4 +150,14 @@ testMulti2 <- problem(naturalAreasBinaryFocal, features = allSuitabilities) %>%
       			add_relative_targets(0.2) %>%
       			add_binary_decisions() %>%
       			add_default_solver(gap = 0)  %>%
-     			add_locked_in_constraints(protectedAreasFocal)
+     			add_locked_in_constraints(protectedAreasBinaryFocal)
+     			
+PMulti2 <- solve(testMulti2)
+
+## test rCBC solver - CONTINUE later
+library(devtools)
+devtools::install_github("dirkschumacher/rcbc")
+
+library(rcbc)
+
+P1cbc <- cbc_solve(test)
