@@ -32,23 +32,23 @@ projectDir <- "~/Dropbox/Documents/ApexRMS/Work/A238 - Multispecies Connectivity
 outDir <- file.path(projectDir, "Data/Processed")
 
 ## Test of prioritzr-----------------------------------------------------------------------
-data(sim_pu_polygons)
-head(sim_pu_polygons@data)
-spplot(sim_pu_polygons, "locked_in", main = "Planning units in protected areas",xlim = c(-0.1, 1.1), ylim = c(-0.1, 1.1))
-data(sim_features)
+#data(sim_pu_polygons)
+#head(sim_pu_polygons@data)
+#spplot(sim_pu_polygons, "locked_in", main = "Planning units in protected areas",xlim = c(-0.1, 1.1), ylim = c(-0.1, 1.1))
+#data(sim_features)
 
 # plot the distribution of suitable habitat for each feature
-plot(sim_features, main = paste("Feature", seq_len(nlayers(sim_features))),
-     nr = 2)
-p1 <- problem(sim_pu_polygons, features = sim_features,
-              cost_column = "cost") %>%
-      add_min_set_objective() %>%
-      add_relative_targets(0.15) %>%
-      add_binary_decisions() %>%
-      add_default_solver(gap = 0)
+#plot(sim_features, main = paste("Feature", seq_len(nlayers(sim_features))),
+#     nr = 2)
+#p1 <- problem(sim_pu_polygons, features = sim_features,
+#              cost_column = "cost") %>%
+##      add_min_set_objective() %>%
+#      add_relative_targets(0.15) %>%
+#      add_binary_decisions() %>%
+#      add_default_solver(gap = 0)
       
-s1 <- solve(p1)
- spplot(s1)    
+#s1 <- solve(p1)
+# spplot(s1)    
 
 ## Test with 5 focal species data ---------------------------------------------------------
 
@@ -97,13 +97,19 @@ habitatArea <- raster(file.path(outDir, paste0(species, "_HabitatArea_FocalArea.
 				nam4 <- paste0(species, "_habitatArea")
 				assign(nam4, habitatArea)
 
+habitatPatch <- raster(file.path(outDir, paste0(species, "_HabitatPatch_FocalArea.tif")))
+				nam4 <- paste0(species, "_habitatPatch")
+				assign(nam4, habitatPatch)				
+
 }
 #Ignore warnings
 
 
   # Combine for all features
-allSuitabilities <- stack(BLBR_habitatSuitability, MAAM_habitatSuitability, URAM_habitatSuitability, RANA_habitatSuitability, PLCI_habitatSuitability, BLBR_habitatArea, MAAM_habitatArea, URAM_habitatArea, RANA_habitatArea, PLCI_habitatArea, BLBR_curmap, MAAM_curmap, URAM_curmap, RANA_curmap, PLCI_curmap)
-  spplot(allSuitabilities)
+allSuitabilities <- stack(BLBR_habitatSuitability, MAAM_habitatSuitability, URAM_habitatSuitability, RANA_habitatSuitability, PLCI_habitatSuitability, BLBR_habitatArea, MAAM_habitatArea, URAM_habitatArea, RANA_habitatArea, PLCI_habitatArea, BLBR_curmap, MAAM_curmap, URAM_curmap, RANA_curmap, PLCI_curmap, BLBR_habitatPatch, MAAM_habitatPatch, URAM_habitatPatch, RANA_habitatPatch, PLCI_habitatPatch)
+ names(allSuitabilities) <- c("BLBR_habitatSuitability", "MAAM_habitatSuitability", "URAM_habitatSuitability", "RANA_habitatSuitability", "PLCI_habitatSuitability", "BLBR_habitatArea", "MAAM_habitatArea", "URAM_habitatArea", "RANA_habitatArea", "PLCI_habitatArea", "BLBR_curmap", "MAAM_curmap", "URAM_curmap", "RANA_curmap", "PLCI_curmap", "BLBR_habitatPatch", "MAAM_habitatPatch", "URAM_habitatPatch", "RANA_habitatPatch", "PLCI_habitatPatch")
+  
+  spplot(allSuitabilities, par.settings = list(fontsize = list(text = 8)))
 
 ## Run prioritizr
  # Single species example 
@@ -111,23 +117,24 @@ allSuitabilities <- stack(BLBR_habitatSuitability, MAAM_habitatSuitability, URAM
  
 test <- problem(naturalAreasBinaryFocal, features = BLBR_habitatSuitability) %>%
 			add_min_set_objective() %>%
-      		add_relative_targets(0.05) %>%
+      		add_relative_targets(0.25) %>%
       		add_binary_decisions() %>%
-      		add_default_solver(gap = 0)
-     		
-P1 <- system.time(solve(test))
+      		add_default_solver(gap = 0) %>%
+     		add_locked_in_constraints(protectedAreasBinaryFocal)
+
+system.time(P1 <- solve(test))
  #     user  system elapsed 
   #  5.542   0.749   6.292
 spplot(P1)
 
   # To incorporate existing protected areas as constraint (i.e. they must be locked in to the final example)
-test2 <- problem(naturalAreasBinaryFocal, features = BLBR_habitatSuitability) %>%
+test2 <- problem(naturalAreasBinaryFocal, features = stack(BLBR_habitatSuitability, BLBR_habitatArea, BLBR_curmap, BLBR_habitatPatch)) %>%
 			add_min_set_objective() %>%
       		add_relative_targets(0.05) %>%
       		add_binary_decisions() %>%
       		add_default_solver(gap = 0) %>%
       		add_locked_in_constraints(protectedAreasBinaryFocal)
-P2 <- solve(test2)
+system.time(P2 <- solve(test2))
 #   user  system elapsed 
 #  5.410   0.783   6.090 
  spplot(P2)
@@ -141,7 +148,8 @@ testMulti <- problem(naturalAreasBinaryFocal, features = allSuitabilities) %>%
       			add_default_solver(gap = 0)
      			
 system.time(PMulti <- solve(testMulti))
- #time 394 seconds
+#   user  system elapsed 
+# 295.063   3.305 305.593 
 spplot(PMulti)
 
 # this includes constraints that 'lock_in' protected areas
@@ -149,15 +157,17 @@ testMulti2 <- problem(naturalAreasBinaryFocal, features = allSuitabilities) %>%
 			    add_min_set_objective() %>%
       			add_relative_targets(0.2) %>%
       			add_binary_decisions() %>%
-      			add_default_solver(gap = 0)  %>%
+      			add_default_...solver(gap = 0)  %>%
      			add_locked_in_constraints(protectedAreasBinaryFocal)
      			
-PMulti2 <- solve(testMulti2)
+system.time(PMulti2 <- solve(testMulti2))
+#   user  system elapsed 
+#483.816   4.615 504.217 
+spplot(PMulti)
 
-## test rCBC solver - CONTINUE later
-library(devtools)
-devtools::install_github("dirkschumacher/rcbc")
+#note that solution map doesn't include protected areas (i.e. you would have to add the two maps)
+spplot(stack(PMulti, protectedAreasBinaryFocal))
 
-library(rcbc)
 
-P1cbc <- cbc_solve(test)
+
+## t
