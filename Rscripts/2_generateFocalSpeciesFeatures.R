@@ -45,7 +45,7 @@ protectedAreasFocal <-  mask(protectedAreas, naturalAreasFocal)
 minPatchSize <- read_csv(file.path(paste0(projectDir, "/Data/Raw/Focal Species"),"FocalSpeciesMinPatchSize.csv"))
 
 ## Generate files for all species using for loop
-specieslist <- c("BLBR", "MAAM", "URAM", "RANA", "PLCI")
+specieslist <- c("BLBR", "MAAM", "URAM", "RASY", "PLCI")
 
 for(i in specieslist){
 
