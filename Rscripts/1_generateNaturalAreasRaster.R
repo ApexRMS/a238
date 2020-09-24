@@ -13,22 +13,24 @@
 # Script by C Tucker for ApexRMS 									
 #####################################################################
 
+# Workspace ---------------------------------------------------------
+
 ## Load packages
 library(tidyverse)
 library(raster)
 library(sf)
 
-## Directories
+## Directories ------
 projectDir <- "~/Dropbox/Documents/ApexRMS/Work/A238 - Multispecies Connectivity"
 dataDir <- file.path(projectDir, "Data/Raw/BTSL_extent")
 outDir <- file.path(projectDir, "Data/Processed")
 
-## Load data
+## Load files and inputs ------
   # Protected areas
-  protectedAreas <- raster(file.path(dataDir, "spatialMultiplier_ProtectedAreas.tif"))
+protectedAreas <- raster(file.path(dataDir, "spatialMultiplier_ProtectedAreas.tif"))
 
   # Study area (Monteregie)
-  focalArea <- st_read(file.path(outDir, "regioMonteregie.shp")) #regios
+focalArea <- st_read(file.path(outDir, "regioMonteregie.shp")) #political boundary
   
   # Natural areas
 LULC <- raster(file.path(dataDir, "InitialStateClass_AgeMean.tif"))
@@ -37,49 +39,63 @@ LULC <- raster(file.path(dataDir, "InitialStateClass_AgeMean.tif"))
     # Mixed Y, Med, Old (521, 522, 523)
     # Conf Y, Med, Old (531, 532, 533)
     # Urban (400, 410)
-      # Subset to natural areas (codes 511, 512, 513, 522, 523, 531, 532, 533, 700) 
-#labelClass <- data.frame(ID = c(-9999, 100, 400, 410, 511, 512, 513, 700, 521, 522, 523, 531, 532, 533, 800, 810), type = c("NA", "Agriculture", "Urban", "Urban", "DeciduousForest", "DeciduousForest", "DeciduousForest", "Eau", "MixedForest", "MixedForest", "MixedForest", "ConiferForest", "ConiferForest", "ConiferForest", "Wetland", "Wetland"))
+  # Subset to natural areas (codes 511, 512, 513, 522, 523, 531, 532, 533) 
+    # labelClass <- data.frame(ID = c(-9999, 100, 400, 410, 511, 512, 513, 700, 521, 522, 523, 531, 532, 533, 800, 810), type = c("NA", "Agriculture", "Urban", "Urban", "DeciduousForest", "DeciduousForest", "DeciduousForest", "Eau", "MixedForest", "MixedForest", "MixedForest", "ConiferForest", "ConiferForest", "ConiferForest", "Wetland", "Wetland"))
 
-  # Input parameters
-polygonBufferWidth <- 20 #km #following C-E Ecopark
 
 ## Reproject shapefile to lcc
   # Create spatial polygon from points
-polygon <- focalArea %>%
+monteregiePolygon <- focalArea %>%
   st_as_sf(coords = c("Longitude", "Latitude"), crs = 4269) %>%
   summarise(geometry = st_combine(geometry)) %>%
   st_cast("POLYGON")
-# Reproject polygon to the same crs as lulcRaw
-polygonProjected <- st_transform(polygon, crs(LULC))
+monteregieProj <- st_transform(monteregiePolygon, crs(LULC)) # Reproject polygon to the same crs as lulcRaw
 
 
-## Crop data to Monteregie shapefile and standardize rasters ---------------------
+## Generate natural areas rasters --------
 
-## LULC
-LULCFocalArea <- LULC %>%
-  crop(., extent(polygonProjected), snap="out") %>% # Crop SOLRIS to study area buffer extent
-  mask(., mask= polygonProjected) %>% # Clip to buffered study area
+  # Reclassify non-natural areas to NA 
+naturalClass <- data.frame(
+				ID = c(-9999, 100, 400, 410, 511, 512, 513, 700, 521, 522, 523, 531, 532, 533, 800, 810), 
+				type = c(NA, NA, NA, NA, 511, 512, 513, NA, 521, 522, 523, 531, 532, 533, 800, 810))
+LULCnatural <- subs(x=LULC, y= naturalClass, by="ID") %>%
+					calc(., fun = function(x){ifelse(x == -9999, NA, x)}) 
+LULCbinary <- calc(LULCnatural, fun = function(x){ifelse(is.na(x), NA, 1)}) 
+
+protectedAreasNatural <- protectedAreas %>%
+							mask(., mask = LULCnatural) 
+						 	
+
+## Crop areas to Monteregie extent --------
+  # Crop LULC
+LULCnaturalFocalArea <- LULCnatural %>%
+  crop(., extent(monteregieProj), snap="out") %>% # Crop to monteregie extent
+  mask(., mask= monteregieProj) %>% # Clip to focal area
+  trim(.)  # Trim extra white spaces
+  
+  # Crop LULC binary
+LULCbinaryFocalArea <- LULCbinary %>%
+  crop(., extent(monteregieProj), snap="out") %>% # Crop to monteregie extent
+  mask(., mask= monteregieProj) %>% # Clip to focal area
+  trim(.) # Trim extra white spaces
+
+  # Crop protected areas 
+protectedAreasNaturalFocalArea <- protectedAreasNatural %>%
+  crop(., extent(monteregieProj), snap="out") %>% 
+  mask(., mask= monteregieProj) %>% # Clip to focal areas
   trim(.) %>% # Trim extra white spaces
-  calc(., fun = function(x){ifelse(x==-9999, NA, x)}) 
-# unique(LULC_buffer)
-
-## Reclassify natural/non-natural areas to NA 
-naturalClass <- data.frame(ID = c(-9999, 100, 400, 410, 511, 512, 513, 700, 521, 522, 523, 531, 532, 533, 800, 810), type = c(NA, NA, NA, NA, 511, 512, 513, NA, 521, 522, 523, 531, 532, 533, 800, 810))
-LULCnaturalFocalArea <- LULCFocalArea %>% subs(x=., y= naturalClass, by="ID")
-LULCbinaryFocalArea <- calc(LULCnaturalFocalArea, fun = function(x){ifelse(is.na(x), NA, 1)}) 
-
-## Crop protected areas to studyAreaBuffer 
-protectedAreasFocalArea <- protectedAreas %>%
-  crop(., extent(polygonProjected), snap="out") %>% 
-  mask(., mask= polygonProjected) %>% # Clip to buffered study area
-  trim(.) %>% # Trim extra white spaces
-  calc(., fun = function(x){ifelse(x==-9999, NA, x)}) 
-
+  calc(., fun = function(x){ifelse(x == -9999, NA, x)}) 
+	
 				
-## Save natural areas raster
-  #Focal area  
+## Save natural areas rasters
+   # Full extent  
 writeRaster(LULCnaturalFocalArea, file.path(outDir, "LULCnaturalFocalArea.tif"), overwrite=TRUE)
 writeRaster(LULCbinaryFocalArea, file.path(outDir, "LULCbinaryFocalArea.tif"), overwrite=TRUE)
-writeRaster(protectedAreasFocalArea, file.path(outDir, "protectedAreasFocalArea.tif"), overwrite=TRUE)
+writeRaster(protectedAreasNaturalFocalArea, file.path(outDir, "protectedAreasNaturalFocalArea.tif"), overwrite=TRUE)
+   
+  # Focal area  
+writeRaster(LULCnatural, file.path(outDir, "LULCnatural.tif"), overwrite=TRUE)
+writeRaster(LULCbinary, file.path(outDir, "LULCbinary.tif"), overwrite=TRUE)
+writeRaster(protectedAreasNatural, file.path(outDir, "protectedAreasNatural.tif"), overwrite=TRUE)
 
 
