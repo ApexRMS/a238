@@ -68,6 +68,12 @@ protectedAreasNatural <- protectedAreas %>%
 
 ## Crop areas to Monteregie extent --------
   # Crop LULC
+LULCFocalArea <- LULC %>%
+  crop(., extent(monteregieProj), snap="out") %>% # Crop to monteregie extent
+  mask(., mask= monteregieProj) %>% # Clip to focal area
+  trim(.)  # Trim extra white spaces
+
+  # Crop LULC natural
 LULCnaturalFocalArea <- LULCnatural %>%
   crop(., extent(monteregieProj), snap="out") %>% # Crop to monteregie extent
   mask(., mask= monteregieProj) %>% # Clip to focal area
@@ -89,13 +95,16 @@ protectedAreasNaturalFocalArea <- protectedAreasNatural %>%
 				
 ## Save natural areas rasters
    # Full extent  
-writeRaster(LULCnaturalFocalArea, file.path(outDir, "LULCnaturalFocalArea.tif"), overwrite=TRUE)
-writeRaster(LULCbinaryFocalArea, file.path(outDir, "LULCbinaryFocalArea.tif"), overwrite=TRUE)
-writeRaster(protectedAreasNaturalFocalArea, file.path(outDir, "protectedAreasNaturalFocalArea.tif"), overwrite=TRUE)
-   
-  # Focal area  
 writeRaster(LULCnatural, file.path(outDir, "LULCnatural.tif"), overwrite=TRUE)
 writeRaster(LULCbinary, file.path(outDir, "LULCbinary.tif"), overwrite=TRUE)
 writeRaster(protectedAreasNatural, file.path(outDir, "protectedAreasNatural.tif"), overwrite=TRUE)
+
+  # Focal area  
+writeRaster(LULCFocalArea, file.path(outDir, "LULC_FocalArea.tif"), overwrite=TRUE)
+  
+writeRaster(LULCnaturalFocalArea, file.path(outDir, "LULCnatural_FocalArea.tif"), overwrite=TRUE)
+writeRaster(LULCbinaryFocalArea, file.path(outDir, "LULCbinary_FocalArea.tif"), overwrite=TRUE)
+writeRaster(protectedAreasNaturalFocalArea, file.path(outDir, "protectedAreasNatural_FocalArea.tif"), overwrite=TRUE)
+
 
 

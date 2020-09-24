@@ -51,11 +51,11 @@ evaltext <- function(x, y){
 
 ## Load files and inputs ------
 
-naturalAreasFocal <- raster(file.path(outDir, "LULCnaturalFocalArea.tif"))
-naturalAreasBinaryFocal <- raster(file.path(outDir, "LULCbinaryFocalArea.tif"))
+naturalAreasFocal <- raster(file.path(outDir, "LULCnatural_FocalArea.tif"))
+naturalAreasBinaryFocal <- raster(file.path(outDir, "LULCbinary_FocalArea.tif"))
  
   # Protected areas
-protectedAreas <- raster(file.path(outDir, "protectedAreasNaturalFocalArea.tif"))
+protectedAreas <- raster(file.path(outDir, "protectedAreasNatural_FocalArea.tif"))
 
 #values so 0 = protected, 1 = unprotected, reflecting cost of inclusion in network
 protectedAreasBinary <-  reclassify(protectedAreas, rcl=matrix(c(0, 1, 1, NA), ncol=2, byrow=T))
@@ -121,8 +121,8 @@ testMulti2 <- problem(naturalAreasBinaryFocal, features = allSuitabilities) %>%
      			add_locked_in_constraints(protectedAreasBinary)
      			
 system.time(PMulti2 <- solve(testMulti2))
-#   user  system elapsed 
-# 13.472   2.470  16.234
+ #  user  system elapsed 
+ #14.467   3.221  17.791 
 spplot(PMulti2, cuts = 8, col.regions= pal)
 plot(PMulti2)
 #note that solution map doesn't include protected areas (i.e. you would have to add the two maps)
