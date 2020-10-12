@@ -28,11 +28,8 @@ suitabilityThreshold <- 60
 
 ## Load data
   # Landuse/landsclass map
-naturalAreas <- raster(file.path(outDir, "LULC_FocalArea.tif"))
- 
-  # Protected areas
-protectedAreasNatural <- raster(file.path(outDir, "protectedAreasNatural_FocalArea.tif"))
-#values 0 = protected, 1 = unprotected 
+LULC <- raster(file.path(outDir, "LULC_FocalArea.tif"))
+#naturalAreas <- raster(file.path(outDir, "LULCnatural_FocalArea.tif"))
 
   # Species characteristics
 minPatchSize <- read_csv(file.path(paste0(dataDir, "/Focal Species"), "Habitat Patch.csv"))
@@ -53,11 +50,12 @@ for(i in specieslist){
 	species <- i		
 
   # Reclassify  to generate resistance map
-resistanceRasterReclass <- naturalAreas %>%
+resistanceRasterReclass <- LULC %>%
+  calc(., fun = function(x){ifelse(x == -9999, NA, x)}) %>%
   reclassify(., rcl=crosswalkResist[which(crosswalkResist$SpeciesID == species), c("StateClassID", "Value")])
 
-  # Overlay habitat patches
-patchRaster <- raster(file.path(outDir, paste0(species, "_HabitatPatch_FocalArea.tif")))
+  # Overlay habitat patches where habitat suitability is >60%
+patchRaster <- raster(file.path(outDir, paste0(species, "_HabitatPatch.tif")))
 
   # Reclass to assign habitat patches a resistance value = 1 
 resistanceRaster <- overlay(patchRaster, resistanceRasterReclass,  
@@ -66,7 +64,7 @@ resistanceRaster[resistanceRaster < 0] <- NA
 
 ## Save outputs ---------------------------------------------------------
 
-writeRaster(resistanceRaster, file.path(outDir, paste0(species, "_Resistance_FocalArea.tif")), overwrite=TRUE)
+writeRaster(resistanceRaster, file.path(outDir, paste0(species, "_Resistance.tif")), overwrite=TRUE)
 
 
 				} # end loop

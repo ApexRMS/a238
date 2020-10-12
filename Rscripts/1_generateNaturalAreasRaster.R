@@ -39,7 +39,8 @@ LULC <- raster(file.path(dataDir, "InitialStateClass_AgeMean.tif"))
     # Decid Y, Med, Old (511, 512, 513)
     # Mixed Y, Med, Old (521, 522, 523)
     # Conf Y, Med, Old (531, 532, 533)
-    # Urban (400, 410)
+    # Urban (400)
+    # Roads (410)
 
 ## Reproject shapefile to lcc
   # Create spatial polygon from points

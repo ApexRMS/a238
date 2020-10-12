@@ -16,7 +16,7 @@
 #####################################################################
 
 
-# Workspace ---------------------------------------------------------
+## Workspace ---------------------------------------------------------
 
 ## Packages
 library(tidyverse)
@@ -38,13 +38,8 @@ suitabilityThreshold <- 60
 
   # Landuse/landsclass map
 LULC <- raster(file.path(outDir, "LULC_FocalArea.tif"))
-naturalAreas <- raster(file.path(outDir, "LULCnatural.tif"))
-naturalAreasBinary <- raster(file.path(outDir, "LULCbinary.tif"))
+naturalAreas <- raster(file.path(outDir, "LULCnatural_FocalArea.tif"))
  
-  # Protected areas
-protectedAreasNatural <- raster(file.path(outDir, "protectedAreasNatural.tif"))
-#values 0 = protected, 1 = unprotected 
-
   # Species characteristics
 minPatchSize <- read_csv(file.path(paste0(dataDir, "/Focal Species"), "Habitat Patch.csv"))
 crosswalkHabSuit <- read_csv(file.path(paste0(dataDir, "/Focal Species"),"Habitat Suitability.csv"))
@@ -63,9 +58,9 @@ species <- i
 
   # Generate habitat suitability layer using from crosswalk
 suitabilityRaster <- LULC %>%
-  reclassify(., rcl = crosswalkHabSuit[which(crosswalkHabSuit$SpeciesID == species), c("Code", "Value")]) %>%
-  calc(., fun = function(x){ifelse(x == -9999, NA, x)}) 
-
+  calc(., fun = function(x){ifelse(x == -9999, NA, x)}) %>%
+  reclassify(., rcl = crosswalkHabSuit[which(crosswalkHabSuit$SpeciesID == species), c("Code", "Value")]) 
+  
   # Create habitat patch layer by constraining to species min patch size
 patchSizeThreshold <- minPatchSize$MinimumHabitatPatchSize[minPatchSize$SpeciesID == species]
   # Generate habitat patch layer by constraining patches to those with >suitability threshold
@@ -88,12 +83,37 @@ habitatClumpAreaID[nrow(habitatClumpAreaID), "count"] <- NA
 habitatArea <- calc(habitatClumpArea, 
 				fun = function(x){
 					habitatClumpAreaID[x, 2] })
+		
+
+## Crop to Focal Area extent ---------------------------------------------------------
+suitabilityRasterFocal <-  suitabilityRaster %>%
+						   crop(., naturalAreas) %>%
+						   mask(., naturalAreas)
+habitatRasterFocal <-  	   habitatRaster %>%
+						   crop(., naturalAreas) %>%
+						   mask(., naturalAreas)
+habitatAreaFocal <-  		habitatRaster %>%
+						   crop(., naturalAreas) %>%
+						   mask(., naturalAreas)	
+habitatRasterContFocal <-  habitatRasterCont %>%
+						   crop(., naturalAreas) %>%
+						   mask(., naturalAreas)						   	
+		
 				
 ## Save outputs ---------------------------------------------------------
 
-writeRaster(suitabilityRaster, file.path(outDir, paste0(species, "_HabitatSuitability_FocalArea.tif")), overwrite=TRUE)
-writeRaster(habitatRaster, file.path(outDir, paste0(species, "_HabitatPatch_FocalArea.tif")), overwrite=TRUE)
-writeRaster(habitatArea, file.path(outDir, paste0(species, "_HabitatArea_FocalArea.tif")), overwrite=TRUE)
-writeRaster(habitatRasterCont, file.path(outDir, paste0(species, "_HabitatID_FocalArea.tif")), overwrite=TRUE)
+  # All LULC area
+writeRaster(suitabilityRaster, file.path(outDir, paste0(species, "_HabitatSuitability.tif")), overwrite=TRUE)
+writeRaster(habitatRaster, file.path(outDir, paste0(species, "_HabitatPatch.tif")), overwrite=TRUE)
+writeRaster(habitatArea, file.path(outDir, paste0(species, "_HabitatArea.tif")), overwrite=TRUE)
+writeRaster(habitatRasterCont, file.path(outDir, paste0(species, "_HabitatID.tif")), overwrite=TRUE)
+
+  # Focal area
+writeRaster(suitabilityRasterFocal, file.path(outDir, paste0(species, "_HabitatSuitability_FocalArea.tif")), overwrite=TRUE)
+writeRaster(habitatRasterFocal, file.path(outDir, paste0(species, "_HabitatPatch_FocalArea.tif")), overwrite=TRUE)
+writeRaster(habitatAreaFocal, file.path(outDir, paste0(species, "_HabitatArea_FocalArea.tif")), overwrite=TRUE)
+writeRaster(habitatRasterContFocal, file.path(outDir, paste0(species, "_HabitatID_FocalArea.tif")), overwrite=TRUE)
 
 } # End loop
+
+## End script
