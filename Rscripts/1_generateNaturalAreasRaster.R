@@ -56,7 +56,8 @@ monteregieProj <- st_transform(monteregiePolygon, crs(LULC)) # Reproject polygon
 # Natural area classes (codes 511, 512, 513, 522, 523, 531, 532, 533) 
 
   # Reclassify non-natural areas to NA 
-naturalClass <- data.frame(ID = c(-9999, 100, 400, 410, 511, 512, 513, 700, 521, 522, 523, 531, 532, 533, 800, 810), type = c(NA, NA, NA, NA, 511, 512, 513, NA, 521, 522, 523, 531, 532, 533, 800, 810))
+naturalClass <- data.frame(
+			ID = c(-9999, 100, 400, 410, 511, 512, 513, 700, 521, 522, 523, 531, 532, 533, 800, 810), 			type = c(NA, NA, NA, NA, 511, 512, 513, NA, 521, 522, 523, 531, 532, 533, 800, 810))
 
   # Generate LULC raster including only natural areas
 LULCnatural <- subs(x=LULC, y= naturalClass, by="ID") %>%
@@ -95,17 +96,30 @@ protectedAreasNaturalFocalArea <- protectedAreasNatural %>%
   calc(., fun = function(x){ifelse(x == -9999, NA, x)}) 
 
 				
-## Save natural areas rasters
+## Save natural areas rasters ---------------------------------------------------------
    # Full extent  
-writeRaster(LULCnatural, file.path(outDir, "LULCnatural.tif"), overwrite=TRUE)
-writeRaster(LULCbinary, file.path(outDir, "LULCbinary.tif"), overwrite=TRUE)
-writeRaster(protectedAreasNatural, file.path(outDir, "protectedAreasNatural.tif"), overwrite=TRUE)
+writeRaster(LULCnatural, 
+			file.path(outDir, "LULCnatural.tif"), 
+			overwrite=TRUE)
+writeRaster(LULCbinary, 
+			file.path(outDir, "LULCbinary.tif"), 
+			overwrite=TRUE)
+writeRaster(protectedAreasNatural, 
+			file.path(outDir, "protectedAreasNatural.tif"), 
+			overwrite=TRUE)
 
   # Focal area  
-writeRaster(LULCFocalArea, file.path(outDir, "LULC_FocalArea.tif"), overwrite=TRUE)
-writeRaster(LULCnaturalFocalArea, file.path(outDir, "LULCnatural_FocalArea.tif"), overwrite=TRUE)
-writeRaster(LULCbinaryFocalArea, file.path(outDir, "LULCbinary_FocalArea.tif"), overwrite=TRUE)
-writeRaster(protectedAreasNaturalFocalArea, file.path(outDir, "protectedAreasNatural_FocalArea.tif"), overwrite=TRUE)
+writeRaster(LULCFocalArea, 
+			file.path(outDir, "LULC_FocalArea.tif"), 
+			overwrite=TRUE)
+writeRaster(LULCnaturalFocalArea, 
+			file.path(outDir, "LULCnatural_FocalArea.tif"), 
+			overwrite=TRUE)
+writeRaster(LULCbinaryFocalArea, 
+			file.path(outDir, "LULCbinary_FocalArea.tif"), 
+			overwrite=TRUE)
+writeRaster(protectedAreasNaturalFocalArea, 
+			file.path(outDir, "protectedAreasNatural_FocalArea.tif"), 
+			overwrite=TRUE)
 
-
-
+## End script

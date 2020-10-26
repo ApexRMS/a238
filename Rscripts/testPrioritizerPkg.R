@@ -61,13 +61,13 @@ protectedAreasBinary <-  reclassify(protectedAreas, rcl=matrix(c(0, 1, 1, 0), nc
 
 ## Load focal species files and rescale ---------------------------------------------------------
 
-species <- read_csv(
+speciesID <- read.csv(
 					file.path(
 					paste0(dataDir, "/Focal Species"), 
-					"Species.csv"))
-species <- species[1:14, 1:3]
+					"Species.csv")
+					stringsAsFactors = FALSE)
 
-specieslist <- species$Code
+specieslist <- speciesID$Code
 
 ## Using for loop
 for(i in specieslist){

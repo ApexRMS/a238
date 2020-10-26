@@ -23,7 +23,6 @@ library(tidyverse)
 library(raster)
 library(sf)
 
-
 ## Directories
 
 projectDir <- "~/Dropbox/Documents/ApexRMS/Work/A238 - Multispecies Connectivity"
@@ -42,8 +41,7 @@ naturalAreas <- raster(file.path(outDir, "LULCnatural_FocalArea.tif"))
  
   # Species characteristics
 minPatchSize <- read_csv(file.path(paste0(dataDir, "/Focal Species"), "Habitat Patch.csv"))
-#crosswalkHabSuit <- read_csv(file.path(paste0(dataDir, "/Focal Species"),"Habitat Suitability.csv"))
-crosswalkHabSuit <- read_csv(file.path(paste0(dataDir, "/Focal Species"),"Habitat Suitability_updated.csv"))
+crosswalkHabSuit <- read_csv(file.path(paste0(dataDir, "/Focal Species"),"Habitat Suitability.csv"))
 crosswalkHabSuit <- crosswalkHabSuit[,1:4]
 species <- read_csv(file.path(paste0(dataDir, "/Focal Species"), "Species.csv"))
 species <- species[1:14, 1:3]
