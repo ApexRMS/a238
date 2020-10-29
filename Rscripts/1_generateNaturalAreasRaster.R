@@ -21,20 +21,25 @@ library(tidyverse)
 library(raster)
 library(sf)
 
+setwd("c:/Users/carol/Dropbox/Documents/ApexRMS/Work/A238 - Multispecies Connectivity")
+
+
 ## Directories ------
-projectDir <- "~/Dropbox/Documents/ApexRMS/Work/A238 - Multispecies Connectivity"
-dataDir <- file.path(projectDir, "Data/Raw/BTSL_extent")
-outDir <- file.path(projectDir, "Data/Processed")
+rawDataDir <- "Data/Raw"
+procDataDir <- "Data/Processed"
+outDir <- "Results"
 
 ## Load files and inputs ------
   # Protected areas
-protectedAreas <- raster(file.path(dataDir, "spatialMultiplier_ProtectedAreas.tif"))
+protectedAreas <- raster(file.path(rawDataDir, "BTSL_extent/spatialMultiplier_ProtectedAreas.tif")) %>%
+                  calc(., fun=function(x){ifelse(x==-9999, NA, x)})
+
 
   # Study area (Monteregie)
-focalArea <- st_read(file.path(outDir, "regioMonteregie.shp")) #political boundary
+focalArea <- st_read(file.path(procDataDir, "regioMonteregie.shp")) #political boundary
   
   # Natural areas
-LULC <- raster(file.path(dataDir, "InitialStateClass_AgeMean.tif"))
+LULC <- raster(file.path(rawDataDir, "BTSL_extent/InitialStateClass_AgeMean.tif"))
     # There are 9 forest classes: Decid, Mixed, Conif x Young, Med, Old. 
     # Decid Y, Med, Old (511, 512, 513)
     # Mixed Y, Med, Old (521, 522, 523)
@@ -66,6 +71,7 @@ LULCbinary <- calc(LULCnatural, fun = function(x){ifelse(is.na(x), NA, 1)})
 
 ## Generate protected area raster including only those occurring in natural areas
 protectedAreasNatural <- protectedAreas %>%
+              crop(., LULCnatural) %>%
 							mask(., mask = LULCnatural) 
 						 	
 
@@ -92,34 +98,33 @@ LULCbinaryFocalArea <- LULCbinary %>%
 protectedAreasNaturalFocalArea <- protectedAreasNatural %>%
   crop(., extent(monteregieProj), snap="out") %>% 
   mask(., mask= monteregieProj) %>% # Clip to focal areas
-  trim(.) %>% # Trim extra white spaces
-  calc(., fun = function(x){ifelse(x == -9999, NA, x)}) 
+  trim(.) # Trim extra white spaces
 
 				
 ## Save natural areas rasters ---------------------------------------------------------
    # Full extent  
 writeRaster(LULCnatural, 
-			file.path(outDir, "LULCnatural.tif"), 
+			file.path(procDataDir, "LULCnatural.tif"), 
 			overwrite=TRUE)
 writeRaster(LULCbinary, 
-			file.path(outDir, "LULCbinary.tif"), 
+			file.path(procDataDir, "LULCbinary.tif"), 
 			overwrite=TRUE)
 writeRaster(protectedAreasNatural, 
-			file.path(outDir, "protectedAreasNatural.tif"), 
+			file.path(procDataDir, "protectedAreasNatural.tif"), 
 			overwrite=TRUE)
 
   # Focal area  
 writeRaster(LULCFocalArea, 
-			file.path(outDir, "LULC_FocalArea.tif"), 
+			file.path(procDataDir, "LULC_FocalArea.tif"), 
 			overwrite=TRUE)
 writeRaster(LULCnaturalFocalArea, 
-			file.path(outDir, "LULCnatural_FocalArea.tif"), 
+			file.path(procDataDir, "LULCnatural_FocalArea.tif"), 
 			overwrite=TRUE)
 writeRaster(LULCbinaryFocalArea, 
-			file.path(outDir, "LULCbinary_FocalArea.tif"), 
+			file.path(procDataDir, "LULCbinary_FocalArea.tif"), 
 			overwrite=TRUE)
 writeRaster(protectedAreasNaturalFocalArea, 
-			file.path(outDir, "protectedAreasNatural_FocalArea.tif"), 
+			file.path(procDataDir, "protectedAreasNatural_FocalArea.tif"), 
 			overwrite=TRUE)
 
 ## End script
