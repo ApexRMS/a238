@@ -25,7 +25,6 @@ library(fasterize)
 
 setwd("c:/Users/carol/Dropbox/Documents/ApexRMS/Work/A238 - Multispecies Connectivity")
 
-
 ## Directories ------
 rawDataDir <- "Data/Raw"
 procDataDir <- "Data/Processed"
@@ -142,13 +141,25 @@ FocalAreaBuffer <- st_buffer(monteregieProj, FocalAreaBufferWidth)
 
 # Create buffered area ----------------------------------------------------
 
+# Create the buffer (note that we need to extend BTSL)
 FocalAreaWithBuffer <- 
   mask(crop(extend(LULC, FocalAreaBuffer),FocalAreaBuffer, snap="out"), 
        FocalAreaBuffer)
 
+# Rasterize buffer to expand the values to fill
 FocalAreaBufferRast <- fasterize(FocalAreaBuffer, raster = FocalAreaWithBuffer)
 
+# Fill those values with placeholder value already present in the raster
 FocalAreaWithBuffer[FocalAreaBufferRast == 1 & is.na(FocalAreaWithBuffer)] <- -9999
+
+# Get the values used to fill the -9999 values
+fillLength <- sum(values(FocalAreaWithBuffer == -9999), na.rm = TRUE)
+values <- freq(FocalAreaWithBuffer)[,1]
+valuesToSample <- values[-c(1,length(values))]
+fillValues <- sample(valuesToSample, fillLength, replace = TRUE)
+
+# Fill the raster
+FocalAreaWithBuffer[FocalAreaWithBuffer == -9999] <- fillValues
 
 
 # Crop areas to Monteregie with buffer ------------------------------------
