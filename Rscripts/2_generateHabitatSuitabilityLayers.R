@@ -38,8 +38,8 @@ suitabilityThreshold <- 60
 ## Load files and inputs ---------------------------------------------------------------
 
   # Landuse/landsclass map
-LULC <- raster(file.path(procDataDir, "LULC_FocalArea.tif"))
-naturalAreas <- raster(file.path(procDataDir, "LULCnatural_FocalArea.tif"))
+LULC <- raster(file.path(procDataDir, "LULC_FocalAreaBuffer.tif"))
+naturalAreas <- raster(file.path(procDataDir, "LULCnatural_FocalAreaBuffer.tif"))
  
   # Species characteristics
 minPatchSize <- read.csv(file.path(
@@ -121,29 +121,29 @@ habitatRasterContFocal <-  habitatRasterCont %>%
   # All LULC area
 writeRaster(suitabilityRaster, 
             file.path(procDataDir, 
-            paste0(species, "_HabitatSuitability.tif")), 
+            paste0(species, "_HabitatSuitabilityBuffer.tif")), 
             overwrite=TRUE)
 writeRaster(habitatRaster, 
             file.path(procDataDir, 
-            paste0(species, "_HabitatPatch.tif")), 
+            paste0(species, "_HabitatPatchBuffer.tif")), 
             overwrite=TRUE)
 writeRaster(habitatArea, 
             file.path(procDataDir, 
-            paste0(species, "_HabitatArea.tif")), 
+            paste0(species, "_HabitatAreaBuffer.tif")), 
             overwrite=TRUE)
 writeRaster(habitatRasterCont, 
             file.path(procDataDir, 
-            paste0(species, "_HabitatID.tif")), 
+            paste0(species, "_HabitatIDBuffer.tif")), 
             overwrite=TRUE)
 
   # Focal area
 writeRaster(suitabilityRasterFocal, 
             file.path(procDataDir, 
-            paste0(species, "_HabitatSuitability_FocalArea.tif")), 
+            paste0(species, "_HabitatSuitability_FocalAreaBuffer.tif")), 
             overwrite=TRUE)
 writeRaster(habitatRasterFocal, 
             file.path(procDataDir, 
-            paste0(species, "_HabitatPatch_FocalArea.tif")), 
+            paste0(species, "_HabitatPatch_FocalAreaBuffer.tif")), 
              overwrite=TRUE)
 writeRaster(habitatAreaFocal, 
             file.path(procDataDir, 
