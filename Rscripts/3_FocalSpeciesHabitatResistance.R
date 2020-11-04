@@ -28,7 +28,7 @@ suitabilityThreshold <- 60
 
 ## Load data
   # Landuse/landsclass map
-LULC <- raster(file.path(outDir, "LULC_FocalArea.tif"))
+LULC <- raster(file.path(outDir, "LULC_FocalAreaBuffer.tif"))
 
   # Species characteristics
 minPatchSize <- read.csv(
@@ -69,7 +69,7 @@ resistanceRasterReclass <- LULC %>%
   # Overlay habitat patches where habitat suitability is >60%
 patchRaster <- raster(
 				file.path(outDir, 
-				paste0(species, "_HabitatPatch.tif")))
+				paste0(species, "_HabitatPatchBuffer.tif")))
 
   # Reclass to assign habitat patches a resistance value = 1 
 resistanceRaster <- overlay(patchRaster, resistanceRasterReclass,  
@@ -80,7 +80,7 @@ resistanceRaster[resistanceRaster < 0] <- NA
 
 writeRaster(resistanceRaster, 
 			file.path(outDir, 
-			paste0(species, "_Resistance.tif")), 
+			paste0(species, "_Resistance_FocalAreaBuffer.tif")), 
 			overwrite=TRUE)
 
 
