@@ -11,7 +11,8 @@
 #    - Raster file with non-natural areas coded as NA, cropped to Monteregie focal area
 #    - Raster file with protected areas cropped to natural areas in Monteregie focal area
 #                                                                   
-# Script by C Tucker for ApexRMS 									
+# Script by C Tucker for ApexRMS 
+# Edited by V Lucet
 #####################################################################
 
 # Workspace ---------------------------------------------------------
@@ -105,13 +106,13 @@ protectedAreasNaturalFocalArea <- protectedAreasNatural %>%
 ## Save natural areas rasters ---------------------------------------------------------
 # Full extent  
 writeRaster(LULCnatural, 
-            file.path(procDataDir, "LULCnatural.tif"), 
+            file.path(procDataDir, "LULCnatural_FocalArea.tif"), 
             overwrite=TRUE)
 writeRaster(LULCbinary, 
-            file.path(procDataDir, "LULCbinary.tif"), 
+            file.path(procDataDir, "LULCbinary_FocalArea.tif"), 
             overwrite=TRUE)
 writeRaster(protectedAreasNatural, 
-            file.path(procDataDir, "protectedAreasNatural.tif"), 
+            file.path(procDataDir, "protectedAreasNatural_FocalArea.tif"), 
             overwrite=TRUE)
 
 # Focal area  
