@@ -21,6 +21,7 @@
 library(tidyverse)
 library(raster)
 library(sf)
+library(fasterize)
 
 setwd("c:/Users/carol/Dropbox/Documents/ApexRMS/Work/A238 - Multispecies Connectivity")
 
@@ -128,5 +129,64 @@ writeRaster(LULCbinaryFocalArea,
 writeRaster(protectedAreasNaturalFocalArea, 
             file.path(procDataDir, "protectedAreasNatural_FocalArea.tif"), 
             overwrite=TRUE)
+
+
+# Create buffer -----------------------------------------------------------
+
+FocalAreaBBox <- st_bbox(monteregieProj)
+FocalAreaBufferWidth <-
+  round(((FocalAreaBBox$ymax - FocalAreaBBox$ymin) +
+           (FocalAreaBBox$xmax - FocalAreaBBox$xmin)) / 2 * 0.2, digits = 0) # in m
+FocalAreaBuffer <- st_buffer(monteregieProj, FocalAreaBufferWidth)
+
+
+# Create buffered area ----------------------------------------------------
+
+FocalAreaWithBuffer <- 
+  mask(crop(extend(LULC, FocalAreaBuffer),FocalAreaBuffer, snap="out"), 
+       FocalAreaBuffer)
+
+FocalAreaBufferRast <- fasterize(FocalAreaBuffer, raster = FocalAreaWithBuffer)
+
+FocalAreaWithBuffer[FocalAreaBufferRast == 1 & is.na(FocalAreaWithBuffer)] <- -9999
+
+
+# Crop areas to Monteregie with buffer ------------------------------------
+
+# Crop LULC natural
+LULCnaturalFocalAreaWithBuffer <- LULCnatural %>%
+  extend(., FocalAreaBuffer) %>% 
+  crop(., extent(FocalAreaBuffer), snap="out") %>% # Crop to monteregie extent
+  mask(., mask= FocalAreaBuffer)
+
+# Crop LULC binary
+LULCbinaryFocalAreaWithBuffer <- LULCbinary %>%
+  extend(., FocalAreaBuffer) %>% 
+  crop(., extent(FocalAreaBuffer), snap="out") %>% # Crop to monteregie extent
+  mask(., mask= FocalAreaBuffer)
+
+# Crop protected areas 
+protectedAreasNaturalFocalAreaWithBuffer <- protectedAreasNatural %>%
+  extend(., FocalAreaBuffer) %>% 
+  crop(., extent(FocalAreaBuffer), snap="out") %>% 
+  mask(., mask= FocalAreaBuffer)
+
+
+# Save output -------------------------------------------------------------
+
+# Focal area with Buffer
+writeRaster(FocalAreaWithBuffer, 
+            file.path(procDataDir, "LULC_FocalAreaBuffer.tif"), 
+            overwrite=TRUE)
+writeRaster(LULCnaturalFocalAreaWithBuffer, 
+            file.path(procDataDir, "LULCnatural_FocalAreaBuffer.tif"), 
+            overwrite=TRUE)
+writeRaster(LULCbinaryFocalAreaWithBuffer, 
+            file.path(procDataDir, "LULCbinary_FocalAreaBuffer.tif"), 
+            overwrite=TRUE)
+writeRaster(protectedAreasNaturalFocalAreaWithBuffer, 
+            file.path(procDataDir, "protectedAreasNatural_FocalAreaBuffer.tif"), 
+            overwrite=TRUE)
+
 
 ## End script
