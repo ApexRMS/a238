@@ -737,6 +737,7 @@ corrplot(corsAll, "ellipse", type="upper", diag=FALSE)
 # jaccard
 jacs <- cross_jaccard(subset(outputAll, 1:20), thresholds = 0.05)
 jacsAll <- cross_jaccard(subset(outputAll, c(1,5,9,13,17)), thresholds = 0.05)
+corrplot(as.matrix(jacsAll$`0.05`), "ellipse", type="upper", diag=FALSE, is.corr=FALSE)
 
 
 ## Export solution rasters ----------------------------------------------------------------------
@@ -748,6 +749,3 @@ writeRaster(outputAll,
             bylayer=TRUE,
             overwrite=TRUE)
 
-
-save.image("4_prioritizationScenarioEcoregions_working.RData")
-load("4_prioritizationScenarioEcoregions_working.RData")
