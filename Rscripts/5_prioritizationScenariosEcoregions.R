@@ -212,7 +212,7 @@ names(All) <- c(paste0(specieslist, "_habitatSuitability"),
 ## Set Prioritizr target values ----------------------------------------------------------------
 
 # Budget
-Budget <- 0.25  
+Budget <- 0.20  
 costLayer3 <- naturalAreasBinaryFocal3
 costLayer4 <- naturalAreasBinaryFocal4
 
@@ -343,7 +343,7 @@ rm(fctAll3, fctAll4, fctAllSol, fctAllSolPA, final)
   # zone 3
 minShortSuitProb3 <- problem(costLayer3, Suitability3) %>% #input is the cost surface + features 
   add_min_shortfall_objective(NumSitesGoal3) %>% #minimize cost surface
-  add_relative_targets(0.8) %>%  # set high to avoid being a constraint??
+  add_relative_targets(0.5) %>%  # set high to avoid being a constraint??
   add_locked_in_constraints(protectedAreasNA3) %>% #force inclusion of protected areas
   add_binary_decisions() #inclusion vs no-inclusion	
 
@@ -355,7 +355,7 @@ freq(minShortSuitSol3)[2, "count"]/c(freq(minShortSuitSol3)[1, "count"] + freq(m
   # zone 4
 minShortSuitProb4 <- problem(costLayer4, Suitability4) %>% #input is the cost surface + features 
   add_min_shortfall_objective(NumSitesGoal4) %>% #minimize cost surface
-  add_relative_targets(0.8) %>%  # set high to avoid being a constraint??
+  add_relative_targets(0.5) %>%  # set high to avoid being a constraint??
   add_locked_in_constraints(protectedAreasNA4) %>% #force inclusion of protected areas
   add_binary_decisions() #inclusion vs no-inclusion	
 
@@ -371,7 +371,7 @@ minShort_FinalSuitability <- stack(minShortSuitSol, minShortSuitSolPA)
   # zone 3
 minShortdensityProb3 <- problem(costLayer3, Density3) %>% #input is the cost surface + features 
   add_min_shortfall_objective(NumSitesGoal3) %>% #minimize cost surface
-  add_relative_targets(0.8) %>%  # set high to avoid being a constraint??
+  add_relative_targets(0.5) %>%  # set high to avoid being a constraint??
   add_locked_in_constraints(protectedAreasNA3) %>% #force inclusion of protected areas
   add_binary_decisions() #inclusion vs no-inclusion	
 
@@ -381,7 +381,7 @@ minShortdensitySol3 <- solve(minShortdensityProb3)
   # zone 4
 minShortdensityProb4 <- problem(costLayer4, Density4) %>% #input is the cost surface + features 
   add_min_shortfall_objective(NumSitesGoal4) %>% #minimize cost surface
-  add_relative_targets(0.8) %>%  # set high to avoid being a constraint??
+  add_relative_targets(0.5) %>%  # set high to avoid being a constraint??
   add_locked_in_constraints(protectedAreasNA4) %>% #force inclusion of protected areas
   add_binary_decisions() #inclusion vs no-inclusion	
 
@@ -397,7 +397,7 @@ minShort_FinalDensity <- stack(minShortDensitySol, minShortDensitySolPA)
   # zone 3
 minShortAreaProb3 <- problem(costLayer3, Area3) %>% #input is the cost surface + features 
   add_min_shortfall_objective(NumSitesGoal3) %>% #minimize cost surface
-  add_relative_targets(0.8) %>%  # set high to avoid being a constraint??
+  add_relative_targets(0.5) %>%  # set high to avoid being a constraint??
   add_locked_in_constraints(protectedAreasNA3) %>% #force inclusion of protected areas
   add_binary_decisions() #inclusion vs no-inclusion	
 
@@ -407,7 +407,7 @@ minShortAreaSol3 <- solve(minShortAreaProb3)
   # zone 4
 minShortAreaProb4 <- problem(costLayer4, Area4) %>% #input is the cost surface + features 
   add_min_shortfall_objective(NumSitesGoal4) %>% #minimize cost surface
-  add_relative_targets(0.8) %>%  # set high to avoid being a constraint??
+  add_relative_targets(0.5) %>%  # set high to avoid being a constraint??
   add_locked_in_constraints(protectedAreasNA4) %>% #force inclusion of protected areas
   add_binary_decisions() #inclusion vs no-inclusion	
 
@@ -423,7 +423,7 @@ minShort_FinalArea <- stack(minShortAreaSol, minShortAreaSolPA)
  # zone 3
 minShortProb3 <- problem(costLayer3, All3) %>% #input is the cost surface + features 
   add_min_shortfall_objective(NumSitesGoal3) %>% #minimize cost surface
-  add_relative_targets(0.80) %>%  # set high to avoid being a constraint??
+  add_relative_targets(0.50) %>%  # set high to avoid being a constraint??
   add_binary_decisions() %>% #inclusion vs no-inclusion	
   add_locked_in_constraints(protectedAreasNA3) %>% #force inclusion of protected areas
   add_default_solver()
@@ -433,7 +433,7 @@ minShortSol3 <- solve(minShortProb3)
  # zone 4
 minShortProb4 <- problem(costLayer4, All4) %>% #input is the cost surface + features 
   add_min_shortfall_objective(NumSitesGoal4) %>% #minimize cost surface
-  add_relative_targets(0.80) %>%  # set high to avoid being a constraint??
+  add_relative_targets(0.50) %>%  # set high to avoid being a constraint??
   add_binary_decisions() %>% #inclusion vs no-inclusion	
   add_locked_in_constraints(protectedAreasNA4) %>% #force inclusion of protected areas
   add_default_solver()
@@ -544,36 +544,34 @@ maxUtilityAllSol <- merge(maxUtilitySol3, maxUtilitySol4)
 maxUtilityAllSolPA <- merge(maxUtilityAllSol, protectedAreasNA)
 maxUtility_FinalAll <- stack(maxUtilityAllSol, maxUtilityAllSolPA)
 
-save.image("4_prioritizationScenarioEcoregions_working.RData")
-
 
 ## Combine and summarize output files --------------------------------------------------------------------
 
 numModels <- 20
 
 # Raster stack all solns incl PA
-outputAll <- stack(sum_FinalAll,
-                   sum_FinalSuitability, 
-                   sum_FinalDensity, 
-                   sum_FinalArea,
-                   max_FinalAll,
-                   max_FinalSuitability,
-                   max_FinalDensity,
-                   max_FinalArea,
-                   mean_FinalAll,
-                   mean_FinalSuitability,
-                   mean_FinalDensity,
-                   mean_FinalArea,
-                   minShort_FinalAll,
-                   minShort_FinalSuitability,
-                   minShort_FinalDensity,  
-                   minShort_FinalArea,
-                   maxUtility_FinalAll,
-                   maxUtility_FinalSuitability,
-                   maxUtility_FinalDensity,  
-                   maxUtility_FinalArea)
+outputAll <- stack(sum_FinalAll[[1]],
+                   sum_FinalSuitability[[1]], 
+                   sum_FinalDensity[[1]], 
+                   sum_FinalArea[[1]],
+                   max_FinalAll[[1]],
+                   max_FinalSuitability[[1]],
+                   max_FinalDensity[[1]],
+                   max_FinalArea[[1]],
+                   mean_FinalAll[[1]],
+                   mean_FinalSuitability[[1]],
+                   mean_FinalDensity[[1]],
+                   mean_FinalArea[[1]],
+                   minShort_FinalAll[[1]],
+                   minShort_FinalSuitability[[1]],
+                   minShort_FinalDensity[[1]],  
+                   minShort_FinalArea[[1]],
+                   maxUtility_FinalAll[[1]],
+                   maxUtility_FinalSuitability[[1]],
+                   maxUtility_FinalDensity[[1]],  
+                   maxUtility_FinalArea[[1]])
 
-mapNames <- paste0(rep(c("SumAll",
+mapNames <- c("SumAll",
   "SumSuit",
   "SumDensity",
   "SumArea",
@@ -592,11 +590,8 @@ mapNames <- paste0(rep(c("SumAll",
   "MUAll",
   "MUSuit",
   "MUDensity",
-  "MUArea"), each=2), c("", "_PA"))
+  "MUArea")
 names(outputAll) <- mapNames
-
-  # Reorder stack 
-outputAll <- subset(outputAll, c(seq(from=1, to=39, by=2), seq(from=2, to=40, by=2)))
 
 
 ## Calculate  representation
@@ -606,12 +601,12 @@ allModelRep <- matrix(NA, nrow=(length(specieslist) * 3 + 1), ncol=numModels)
 colnames(allModelRep) <- names(outputAll)[1:numModels]
 rownames(allModelRep) <- c("Size", paste(rep(specieslist, each=3), c("Suit", "Density", "Area"), sep="_"))
 
-# Per model output, extract total amount of each feature included in solution
+  # Per model output, extract total amount of each feature included in solution
 
-
-for(k in 1:numModels){
-  modelSol <- outputAll[[k]]
-  allModelRep[1, k] <- freq(modelSol)[2, "count"]
+for(m in 1:numModels){
+  
+  modelSol <- outputAll[[m]]
+  allModelRep[1, m] <- freq(modelSol)[2, "count"]
   
   for(l in 1:length(specieslist)){
         sp <- specieslist[l]
@@ -625,7 +620,7 @@ for(k in 1:numModels){
   coverage <- overlay(x=modelSol, y=Area[[l]], fun=function(x, y){(x * y)})
   areacover <- cellStats(coverage, "sum", na.rm=TRUE)/cellStats(Area[[l]], "sum", na.rm=TRUE)
   
-  allModelRep[((l*3)-1):((l*3)+ 1), k] <- c(suitcover, densecover, areacover)
+  allModelRep[((l*3)-1):((l*3)+ 1), m] <- c(suitcover, densecover, areacover)
          }
   }
 
@@ -633,111 +628,88 @@ barplot(allModelRep[1, ], cex.names=0.75, angle=30, beside=TRUE)
 barplot(allModelRep[-1, ], cex.names=0.75, angle=30, beside=TRUE)
 
 
+  # Plot complete models representation of all features
+repAll <- allModelRep[c(2,5,8,11,14,3,6,9,12,15,4,7,10,13,16), c("SumAll", "MaxAll", "MeanAll", "MSAll", "MUAll")]
 
-par(mfrow=c(1,2))
-plot(outputAll[["MSAll"]])
-plot(outputAll[["MUAll"]])
+barplot(repAll, 
+        beside=TRUE, 
+        names.arg=c("1d. Sum All", "2d. Max All", "3d. Mean All", "4d. Min Shortfall", "5d. Max Utility"),
+        col = c("lightsalmon",  "lightsalmon1", "lightsalmon2", "lightsalmon3", "lightsalmon4",
+                "indianred1", "indianred2", "indianred",  "indianred3", "indianred4", 
+                "mediumpurple ", "mediumpurple1", "mediumpurple2",  "mediumpurple3", "mediumpurple4"), 
+        xlab="Model approach", 
+        ylab="% Representation",
+        ylim=c(0, 0.6))
+#abline(h=c(0.2, 0.4), col="grey")
+
+legend("topleft", 
+       legend=c("Suitability (sp 1-5)", "Density (sp 1-5)", "Area (sp 1-5)"), 
+       fill=c("lightsalmon2", "indianred2", "mediumpurple2"))
+
 ## Calculate raster correlations
 
-#cors <- layerStats(subset(outputAll, 1:20), "pearson", na.rm=TRUE)
 set.seed(10)
-subSamp <- sampleRandom(subset(outputAll, 1:20), size= ncell(outputAll[[1]]) * 0.25)
+subSamp <- sampleRandom(outputAll, size= ncell(outputAll[[1]]) * 0.25)
 cors <- cor(subSamp)
-
-#                SumAll     SumSuit SumDensity    SumArea      MaxAll     MaxSuit
-#SumAll      1.00000000  0.18031173 0.39492364 0.85946678  0.02376495  0.02152637
-#SumSuit     0.18031173  1.00000000 0.09935234 0.15752819  0.02224282  0.02319036
-#SumDensity  0.39492364  0.09935234 1.00000000 0.27171082  0.02370270  0.02189052
-#SumArea     0.85946678  0.15752819 0.27171082 1.00000000  0.02351016  0.02247970
-#MaxAll      0.02376495  0.02224282 0.02370270 0.02351016  1.00000000  0.02334434
-#MaxSuit     0.02152637  0.02319036 0.02189052 0.02247970  0.02334434  1.00000000
-#MaxDensity  0.28527213  0.05557887 0.79551261 0.17142847  0.01991553  0.01886139
-#MaxArea     0.65934464  0.02441032 0.24309495 0.72321101  0.01961339  0.01730375
-#MeanAll     0.80266011  0.11150790 0.45632494 0.73537352  0.02396630  0.02115919
-#MeanSuit    0.17975504  0.87297009 0.09948263 0.15706626  0.02073859  0.02250339
-#MeanDensity 0.39492777  0.09935559 0.99999408 0.27171458  0.02369388  0.02189354
-#MeanArea    0.56072858 -0.01531539 0.19019824 0.61677831  0.01878429  0.01797888
-#MSAll       0.63769316  0.13761795 0.29308980 0.62265307 -0.04505638 -0.04624081
-#MSSuit      0.12229810  0.68322472 0.03861469 0.10632536 -0.04626450 -0.04631188
-#MSDensity   0.29013255  0.02927832 0.74297243 0.17412202 -0.04505638 -0.04671458
-#MSArea      0.60205351  0.08546759 0.20654339 0.63242461 -0.04590917 -0.04652507
-#MUAll       0.74470687  0.07564868 0.30769385 0.69155125 -0.04403777 -0.04627634
-#MUSuit      0.08577012  0.69011809 0.02981436 0.06042878 -0.04660798 -0.04587364
-#MUDensity   0.29052341  0.02109392 0.74470170 0.17415756 -0.04414437 -0.04691593
-#MUArea      0.69244960  0.05834418 0.17733531 0.74469654 -0.04502085 -0.04602761
-#              MaxDensity      MaxArea    MeanAll    MeanSuit MeanDensity    MeanArea
-#SumAll       0.285272129  0.659344637 0.80266011  0.17975504  0.39492777  0.56072858
-#SumSuit      0.055578874  0.024410321 0.11150790  0.87297009  0.09935559 -0.01531539
-#SumDensity   0.795512607  0.243094949 0.45632494  0.09948263  0.99999408  0.19019824
-#SumArea      0.171428466  0.723211014 0.73537352  0.15706626  0.27171458  0.61677831
-#MaxAll       0.019915535  0.019613388 0.02396630  0.02073859  0.02369388  0.01878429
-#MaxSuit      0.018861388  0.017303753 0.02115919  0.02250339  0.02189354  0.01797888
-#MaxDensity   1.000000000  0.174614596 0.38394800  0.05546043  0.79551792  0.14914924
-#MaxArea      0.174614596  1.000000000 0.63679299  0.02459983  0.24309863  0.75863726
-#MeanAll      0.383947997  0.636792994 1.00000000  0.11163818  0.45632925  0.62872699
-#MeanSuit     0.055460431  0.024599830 0.11163818  1.00000000  0.09948588 -0.01507851
-#MeanDensity  0.795517923  0.243098630 0.45632925  0.09948588  1.00000000  0.19020176
-#MeanArea     0.149149243  0.758637256 0.62872699 -0.01507851  0.19020176  1.00000000
-#MSAll        0.189727987  0.544421603 0.53713463  0.13719156  0.29309363  0.43678078
-#MSSuit      -0.005644573  0.002249673 0.06212880  0.68259698  0.03861776 -0.04838463
-#MSDensity    0.644503666  0.153489288 0.33756917  0.02959812  0.74297760  0.09939646
-#MSArea       0.113177950  0.597116806 0.50881479  0.08562156  0.20654696  0.49037615
-#MUAll        0.209898916  0.576282717 0.68033283  0.07461823  0.30769772  0.48741508
-#MUSuit      -0.008309552 -0.053382912 0.02910675  0.69069846  0.02981741 -0.08565858
-#MUDensity    0.664544307  0.150729571 0.34882130  0.02149663  0.74470687  0.10270101
-#MUArea       0.090981638  0.628646280 0.61161191  0.05860476  0.17733880  0.53762299
-#               MSAll       MSSuit   MSDensity      MSArea       MUAll       MUSuit
-#SumAll       0.63769316  0.122298100  0.29013255  0.60205351  0.74470687  0.085770123
-#SumSuit      0.13761795  0.683224724  0.02927832  0.08546759  0.07564868  0.690118095
-#SumDensity   0.29308980  0.038614689  0.74297243  0.20654339  0.30769385  0.029814363
-#SumArea      0.62265307  0.106325364  0.17412202  0.63242461  0.69155125  0.060428778
-#MaxAll      -0.04505638 -0.046264499 -0.04505638 -0.04590917 -0.04403777 -0.046607983
-#MaxSuit     -0.04624081 -0.046311876 -0.04671458 -0.04652507 -0.04627634 -0.045873638
-#MaxDensity   0.18972799 -0.005644573  0.64450367  0.11317795  0.20989892 -0.008309552
-#MaxArea      0.54442160  0.002249673  0.15348929  0.59711681  0.57628272 -0.053382912
-#MeanAll      0.53713463  0.062128800  0.33756917  0.50881479  0.68033283  0.029106751
-#MeanSuit     0.13719156  0.682596977  0.02959812  0.08562156  0.07461823  0.690698465
-#MeanDensity  0.29309363  0.038617764  0.74297760  0.20654696  0.30769772  0.029817412
-#MeanArea     0.43678078 -0.048384625  0.09939646  0.49037615  0.48741508 -0.085658575
-#MSAll        1.00000000  0.336874280  0.46784833  0.88000560  0.84359628  0.305001321
-#MSSuit       0.33687428  1.000000000  0.23604392  0.29209106  0.28561223  0.789017835
-#MSDensity    0.46784833  0.236043922  1.00000000  0.38981821  0.47150821  0.228842599
-#MSArea       0.88000560  0.292091056  0.38981821  1.00000000  0.79362526  0.258204570
-#MUAll        0.84359628  0.285612235  0.47150821  0.79362526  1.00000000  0.254627597
-#MUSuit       0.30500132  0.789017835  0.22884260  0.25820457  0.25462760  1.000000000
-#MUDensity    0.45788729  0.228155631  0.96312876  0.37914652  0.47221887  0.220255496
-#MUArea       0.79253559  0.280033579  0.35179807  0.81665054  0.85945577  0.240935609
-#MUDensity      MUArea
-#SumAll       0.29052341  0.69244960
-#SumSuit      0.02109392  0.05834418
-#SumDensity   0.74470170  0.17733531
-#SumArea      0.17415756  0.74469654
-#MaxAll      -0.04414437 -0.04502085
-#MaxSuit     -0.04691593 -0.04602761
-#MaxDensity   0.66454431  0.09098164
-#MaxArea      0.15072957  0.62864628
-#MeanAll      0.34882130  0.61161191
-#MeanSuit     0.02149663  0.05860476
-#MeanDensity  0.74470687  0.17733880
-#MeanArea     0.10270101  0.53762299
-#MSAll        0.45788729  0.79253559
-#MSSuit       0.22815563  0.28003358
-#MSDensity    0.96312876  0.35179807
-#MSArea       0.37914652  0.81665054
-#MUAll        0.47221887  0.85945577
-#MUSuit       0.22025550  0.24093561
-#MUDensity    1.00000000  0.35199943
-#MUArea       0.35199943  1.00000000
 
 corrplot(cors, "ellipse", type="upper", diag=FALSE)
 
 corsAll <- cor(sampleRandom(subset(outputAll, c(1,5,9,13,17)), size= ncell(outputAll[[1]]) * 0.25 ))
-corrplot(corsAll, "ellipse", type="upper", diag=FALSE)
+corrplot(corsAll, "number", type="upper", diag=TRUE)
+
+
 
 # jaccard
 jacs <- cross_jaccard(subset(outputAll, 1:20), thresholds = 0.05)
 jacsAll <- cross_jaccard(subset(outputAll, c(1,5,9,13,17)), thresholds = 0.05)
 corrplot(as.matrix(jacsAll$`0.05`), "ellipse", type="upper", diag=FALSE, is.corr=FALSE)
+
+
+## Layers with PA added
+outputAllPA <- stack(sum_FinalAll[[2]],
+                   sum_FinalSuitability[[2]], 
+                   sum_FinalDensity[[2]], 
+                   sum_FinalArea[[2]],
+                   max_FinalAll[[2]],
+                   max_FinalSuitability[[2]],
+                   max_FinalDensity[[2]],
+                   max_FinalArea[[2]],
+                   mean_FinalAll[[2]],
+                   mean_FinalSuitability[[2]],
+                   mean_FinalDensity[[2]],
+                   mean_FinalArea[[2]],
+                   minShort_FinalAll[[2]],
+                   minShort_FinalSuitability[[2]],
+                   minShort_FinalDensity[[2]],  
+                   minShort_FinalArea[[2]],
+                   maxUtility_FinalAll[[2]],
+                   maxUtility_FinalSuitability[[2]],
+                   maxUtility_FinalDensity[[2]],  
+                   maxUtility_FinalArea[[2]])
+
+mapNamesPA <- paste0(c("SumAll",
+              "SumSuit",
+              "SumDensity",
+              "SumArea",
+              "MaxAll",
+              "MaxSuit",
+              "MaxDensity",
+              "MaxArea",
+              "MeanAll",
+              "MeanSuit",
+              "MeanDensity",
+              "MeanArea",
+              "MSAll",
+              "MSSuit",
+              "MSDensity",
+              "MSArea",
+              "MUAll",
+              "MUSuit",
+              "MUDensity",
+              "MUArea"), "PA")
+names(outputAllPA) <- mapNamesPA
+
+
 
 
 ## Export solution rasters ----------------------------------------------------------------------
@@ -749,3 +721,8 @@ writeRaster(outputAll,
             bylayer=TRUE,
             overwrite=TRUE)
 
+writeRaster(outputAllPA, 
+            filename=file.path(outDir, 
+                               paste0(names(outputAllPA), "_prioritizationMap.tif")), 
+            bylayer=TRUE,
+            overwrite=TRUE)

@@ -81,7 +81,7 @@ combinedResistanceMax <- stackApply(resistanceAll, nlayers(resistanceAll), "max"
 #sum
 combinedResistanceSum <- stackApply(resistanceAll, nlayers(resistanceAll), "sum", na.rm=TRUE)  %>%
                           calc(., fun=function(x){rescaleR(x, new.min = 1, new.max = 32)}) %>%
-                          mask(., resistanceAll[[1]])
+                          mask(., resistanceAll)
 
 
 ## Output summary resistance layers-----------------------------------------------------------
