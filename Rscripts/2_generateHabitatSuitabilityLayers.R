@@ -148,11 +148,11 @@ for(i in specieslist){
               overwrite=TRUE)
   writeRaster(habitatAreaFocal, 
               file.path(procDataDir, 
-                        paste0(species, "_HabitatArea_FocalArea.tif")), 
+                        paste0(species, "_HabitatArea_FocalAreaBuffer.tif")), 
               overwrite=TRUE)
   writeRaster(habitatRasterContFocal, 
               file.path(procDataDir, 
-                        paste0(species, "_HabitatID_FocalArea.tif")), 
+                        paste0(species, "_HabitatID_FocalAreaBuffer.tif")), 
               overwrite=TRUE)
   
 } # End loop
