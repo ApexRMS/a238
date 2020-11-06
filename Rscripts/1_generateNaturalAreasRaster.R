@@ -106,13 +106,13 @@ protectedAreasNaturalFocalArea <- protectedAreasNatural %>%
 ## Save natural areas rasters ---------------------------------------------------------
 # Full extent  
 writeRaster(LULCnatural, 
-            file.path(procDataDir, "LULCnatural_FocalArea.tif"), 
+            file.path(procDataDir, "LULCnatural.tif"), 
             overwrite=TRUE)
 writeRaster(LULCbinary, 
-            file.path(procDataDir, "LULCbinary_FocalArea.tif"), 
+            file.path(procDataDir, "LULCbinary.tif"), 
             overwrite=TRUE)
 writeRaster(protectedAreasNatural, 
-            file.path(procDataDir, "protectedAreasNatural_FocalArea.tif"), 
+            file.path(procDataDir, "protectedAreasNatural.tif"), 
             overwrite=TRUE)
 
 # Focal area  
