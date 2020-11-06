@@ -59,6 +59,7 @@ species <- read.csv(file.path(
 
 # for loop over all species in species list
 specieslist <- species$Code
+specieslist <- specieslist[specieslist != ""]
 
 for(i in specieslist){
   
