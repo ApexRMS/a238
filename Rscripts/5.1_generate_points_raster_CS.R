@@ -1,8 +1,18 @@
+#-------------------------------------------------------------------------------
+## 5.1 Gnerate points raster for CS
+## 2020
+## Inputs: reclassed resistance (names)
+## Outputs: INI Files
+#-------------------------------------------------------------------------------
+
 library(raster)
 library(sf)
 library(tidyverse)
 
+set.seed(777)
+
 FocalAreaWithBuffer <- raster("Data/Processed/LULC_FocalAreaBuffer.tif")
+FocalAreaBuffer <- st_read("Data/Processed/buffer.shp")
 
 the_points <- st_as_sf(st_cast(st_sample(st_cast(FocalAreaBuffer, "LINESTRING"), 
                                 10000, "regular"), "POINT"))
@@ -37,4 +47,5 @@ the_points_to_keep_rast <- mask(base_raster, the_points_to_keep)
 
 the_points_to_keep_rast_clp <- clump(the_points_to_keep_rast)
 
-writeRaster(the_points_to_keep_rast_clp, "Data/Processed/circuitscape_pts.tif")
+writeRaster(the_points_to_keep_rast_clp, "Data/Processed/circuitscape_pts.tif", 
+            overwrite = TRUE)

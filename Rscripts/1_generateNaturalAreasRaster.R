@@ -137,6 +137,7 @@ FocalAreaBufferWidth <-
   round(((FocalAreaBBox$ymax - FocalAreaBBox$ymin) +
            (FocalAreaBBox$xmax - FocalAreaBBox$xmin)) / 2 * 0.2, digits = 0) # in m
 FocalAreaBuffer <- st_buffer(monteregieProj, FocalAreaBufferWidth)
+st_write(FocalAreaBuffer, "Data/Processed/buffer.shp")
 
 
 # Create buffered area ----------------------------------------------------
