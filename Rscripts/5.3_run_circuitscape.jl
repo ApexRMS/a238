@@ -19,10 +19,11 @@ dir = "config/all/"
 ext = "ini"
 ini_list = dir .* searchdir(dir, ext)
 # Get cores
-cores = 2
+#cores = 2
 # Add cores with prokect flag
-addprocs(cores, exeflags="--project")
+#addprocs(cores, exeflags="--project")
 # Still need to declare Circuitscape everywhere
-@everywhere using Circuitscape
+using Circuitscape
 # META-PARALLELIZATION => Call to pmap, batch_size size in question
-pmap(compute, ini_list, batch_size=3)
+compute(ini_list[1])
+#pmap(compute, ini_list)
