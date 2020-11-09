@@ -29,11 +29,11 @@ evaltext <- function(x, y){
            eval(parse(text = paste0(X, y)))}
   )}
 
-# rescaleR <- function(x, new.min = 0, new.max = 1){
-#   x.min = suppressWarnings(cellStats(min(x, na.rm=TRUE))
-#   #x.max = suppressWarnings(max(x, na.rm=TRUE))
-#   new.min + (x - x.min) * ((new.max - new.min) / (x.max - x.min))
-#   }
+rescaleR <- function(x, new.min = 0, new.max = 1){
+  x.min = suppressWarnings(min(x, na.rm=TRUE))
+  x.max = suppressWarnings(max(x, na.rm=TRUE))
+  new.min + (x - x.min) * ((new.max - new.min) / (x.max - x.min))
+}
 
 ## Directories
 rawDataDir <- "Data/Raw"
@@ -42,10 +42,10 @@ outDir <- "outputs"
 
 ## Load species list
 speciesID <- read.csv(
-					file.path(
-					  paste0(rawDataDir, "/Focal Species"), 
-					    "Species.csv"), 
-					stringsAsFactors = FALSE)
+  file.path(
+    paste0(rawDataDir, "/Focal Species"), 
+    "Species.csv"), 
+  stringsAsFactors = FALSE)
 specieslist <- speciesID$Code
 specieslist <- specieslist[specieslist != ""]
 
@@ -58,31 +58,32 @@ for(i in specieslist){ # run for all species
   
   species <- i
   
-resistance <- raster(file.path(procDataDir, paste0(species, "_ResistanceBuffer.tif")))
+  resistance <- raster(file.path(procDataDir, paste0(species, "_ResistanceBuffer.tif")))
   nam2 <- paste0(species, "_resistance")
   assign(nam2, resistance)	
-
-}  # End loop
   
-  # Combine resistance files
+  # Ignore warnings - related to issue of sf/sp packages 
+}  # End loop
+
+# Combine resistance files
 All <- evaltext(specieslist, "_resistance")
 resistanceAll <- stack(All)  
 
-  
+
 ## Calculate summary files
 
 #mean
 combinedResistanceMean <- stackApply(resistanceAll, nlayers(resistanceAll), "mean", na.rm=TRUE) %>%
-                          calc(., fun=function(x){rescaleR(x, new.min = 1, new.max = 32)})
+  calc(., fun=function(x){rescaleR(x, new.min = 1, new.max = 32)})
 
 #max
 combinedResistanceMax <- stackApply(resistanceAll, nlayers(resistanceAll), "max", na.rm=TRUE) %>%
-                          calc(., fun=function(x){rescaleR(x, new.min = 1, new.max = 32)})
+  calc(., fun=function(x){rescaleR(x, new.min = 1, new.max = 32)})
 
 #sum
 combinedResistanceSum <- stackApply(resistanceAll, nlayers(resistanceAll), "sum", na.rm=TRUE)  %>%
-                          calc(., fun=function(x){rescaleR(x, new.min = 1, new.max = 32)}) %>%
-                          mask(., resistanceAll)
+  calc(., fun=function(x){rescaleR(x, new.min = 1, new.max = 32)}) %>%
+  mask(., resistanceAll)
 
 
 ## Output summary resistance layers-----------------------------------------------------------
@@ -99,4 +100,4 @@ writeRaster(combinedResistanceSum,
             overwrite=TRUE)
 
 
-  # End script
+# End script
