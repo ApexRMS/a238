@@ -9,7 +9,7 @@ library(raster)
 library(sf)
 library(tidyverse)
 
-set.seed(777)
+set.seed(7777)
 
 FocalAreaWithBuffer <- raster("Data/Processed/LULC_FocalAreaBuffer.tif")
 FocalAreaBuffer <- st_read("Data/Processed/buffer.shp")
@@ -26,7 +26,7 @@ the_distances_tbl <- as.data.frame(as.table(the_distances)) %>%
   rename(P1 = Var1, P2 = Var2, dist = Freq) %>% 
   mutate(P1 = as.numeric(P1), P2 = as.numeric(P2), dist = as.numeric(dist)) %>% 
   filter(dist != 0) %>% 
-  mutate(to_keep = dist > 15000 & dist > 0)
+  mutate(to_keep = dist > 3650 & dist > 0)
 
 to_remove <- the_distances_tbl %>%
   filter(to_keep == FALSE) %>% 
@@ -37,15 +37,19 @@ to_remove <- the_distances_tbl %>%
 the_points_to_keep <- the_points %>% 
   filter(!(ID %in% to_remove))
 
+dim(the_points_to_keep)
+
 #plot(the_points$x)
 #plot(the_points_to_keep$x, col = 2, add = TRUE)
-plot(the_points_to_keep$x, col = 2, add = FALSE)
+#plot(the_points_to_keep$x, col = 2, add = FALSE)
 
 base_raster <- FocalAreaWithBuffer
 values(base_raster) <- 1
 the_points_to_keep_rast <- mask(base_raster, the_points_to_keep)
 
 the_points_to_keep_rast_clp <- clump(the_points_to_keep_rast)
+the_points_to_keep_rast_clp[!is.na(the_points_to_keep_rast_clp)] <- 
+  sample(rep(1:50, each=2))
 
 writeRaster(the_points_to_keep_rast_clp, "Data/Processed/circuitscape_pts.tif", 
             overwrite = TRUE)
