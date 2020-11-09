@@ -30,7 +30,7 @@ evaltext <- function(x, y){
   )}
 
 rescaleR <- function(x, new.min = 0, new.max = 1){
-  x.min = suppressWarnings(cellStats(min(x, na.rm=TRUE))
+  x.min = suppressWarnings(min(x, na.rm=TRUE))
   x.max = suppressWarnings(max(x, na.rm=TRUE))
   new.min + (x - x.min) * ((new.max - new.min) / (x.max - x.min))
   }
@@ -61,6 +61,7 @@ resistance <- raster(file.path(procDataDir, paste0(species, "_Resistance.tif")))
   nam2 <- paste0(species, "_resistance")
   assign(nam2, resistance)	
 
+  # Ignore warnings - related to issue of sf/sp packages 
 }  # End loop
   
   # Combine resistance files
