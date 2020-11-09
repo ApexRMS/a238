@@ -29,16 +29,16 @@ evaltext <- function(x, y){
            eval(parse(text = paste0(X, y)))}
   )}
 
-rescaleR <- function(x, new.min = 0, new.max = 1){
-  x.min = suppressWarnings(cellStats(min(x, na.rm=TRUE))
-  x.max = suppressWarnings(max(x, na.rm=TRUE))
-  new.min + (x - x.min) * ((new.max - new.min) / (x.max - x.min))
-  }
+# rescaleR <- function(x, new.min = 0, new.max = 1){
+#   x.min = suppressWarnings(cellStats(min(x, na.rm=TRUE))
+#   #x.max = suppressWarnings(max(x, na.rm=TRUE))
+#   new.min + (x - x.min) * ((new.max - new.min) / (x.max - x.min))
+#   }
 
 ## Directories
 rawDataDir <- "Data/Raw"
 procDataDir <- "Data/Processed"
-outDir <- "Results"
+outDir <- "outputs"
 
 ## Load species list
 speciesID <- read.csv(
@@ -47,6 +47,7 @@ speciesID <- read.csv(
 					    "Species.csv"), 
 					stringsAsFactors = FALSE)
 specieslist <- speciesID$Code
+specieslist <- specieslist[specieslist != ""]
 
 #specieslist <- c("PLCI", "RASY", "URAM", "MAAM", "BLBR")
 
@@ -57,7 +58,7 @@ for(i in specieslist){ # run for all species
   
   species <- i
   
-resistance <- raster(file.path(procDataDir, paste0(species, "_Resistance.tif")))
+resistance <- raster(file.path(procDataDir, paste0(species, "_ResistanceBuffer.tif")))
   nam2 <- paste0(species, "_resistance")
   assign(nam2, resistance)	
 
