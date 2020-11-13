@@ -37,8 +37,6 @@ rawDataDir <- "Data/Raw"
 procDataDir <- "Data/Processed"
 outDir <- "Results"
 
-## Function definitions
-
 ## Functions 
 rescaleR <- function(x, new.min = 0, new.max = 1) {
   x.min = suppressWarnings(min(x, na.rm=TRUE))
@@ -61,9 +59,16 @@ evaltext2 <- function(x, y){
 
 ## Load files ---------------------------------------------------------
 
+# Load species list
+speciesID <- read.csv(
+  file.path(
+    paste0(rawDataDir, "/Focal Species"), 
+    "Species.csv"), 
+  stringsAsFactors = FALSE)
+specieslist <- speciesID$Code
+
   # Focal area
 LULC <- raster(file.path(procDataDir, "LULC_FocalArea.tif")) # 1465929 cells
-
 naturalAreasFocal <- raster(file.path(procDataDir, "LULCnatural_FocalArea.tif"))
 naturalAreasBinaryFocal <- raster(file.path(procDataDir, "LULCbinary_FocalArea.tif"))
 
@@ -73,17 +78,6 @@ protectedAreas <- raster(file.path(procDataDir, "protectedAreasNatural_FocalArea
 protectedAreasBinary <-  reclassify(protectedAreas, rcl=matrix(c(0, 1, 1, 0), ncol=2, byrow=T))
 #values so 1 = protected, 0 = unprotected, reflecting contribution to network
 protectedAreasNA <-  reclassify(protectedAreasBinary, rcl=matrix(c(0, NA, 1, 1), ncol=2, byrow=T))
-
-## Load species list
-#speciesID <- read.csv(
-#					file.path(
-#					paste0(rawDataDir, "/Focal Species"), 
-#					"Species.csv"), 
-#					stringsAsFactors = FALSE)
-#specieslist <- speciesID$Code
-
-specieslist <- c("PLCI", "RASY", "URAM", "MAAM", "BLBR")
-
 
   # Ecoregions
 ecoregions <- raster(file.path(rawDataDir, "StudyArea/PrimaryStratum.tif")) %>%
@@ -104,12 +98,11 @@ protectedAreasNA4 <-  mask(protectedAreasNA, zone4)
 protectedAreas3 <- mask(protectedAreasBinary, zone3)
 protectedAreas4 <- mask(protectedAreasBinary, zone4)
 
-
 ## Generate feature files ---------------------------------------------------------
 
-## Using for loop over all species 5 for 3 layers each
+## Using for loop over j zones, for i species with 3 input layers each
   # all layers normalized
-  # log scaling for density values (many orders of magnitude var)
+  # log scaling for current density values (many orders of magnitude var)
   # Range scaling for input into prioritizr
 
 
@@ -123,7 +116,7 @@ protectedAreasZ <- eval(parse(text=paste0("protectedAreasNA", j)))
   
       species <- i
         
-density <- raster(file.path(procDataDir, paste0(species, "_curmap_FocalArea.tif"))) %>%
+density <- raster(file.path(procDataDir, paste0(species, "_Resistance_FocalAreaBuffer_out_cum_curmap.tif"))) %>%
         crop(., naturalAreasZ) %>%
         mask(., naturalAreasZ) %>%
         mask(., protectedAreasZ, inv=TRUE) %>%
@@ -188,12 +181,59 @@ names(All) <- c(paste0(specieslist, "_habitatSuitability"),
 namm <- paste0("All", j)
 assign(namm, All)
 
+# Ignore warnings (sp/sf proj issue)
 } # Finish ecoregion loop
 
-  # Output is All3 and All 4 (rasterStacks with all features), and rasterStacks for Area3/4, Suitability3/4. 
-  # and Density3/4
+# Output is: All3 and All4 (rasterStacks with all features), 
+# Area3/Area4, Suitability3/Suitability 4. and Density3/4 (rasterStacks for types of features)
 
-## Build complete rasters covering entire Monteregie 
+
+## Load summary current density files for scenario 3------------------------------------------------
+
+for(p in c(3, 4)){ # run for both zones, all species
+  
+  zone <- eval(parse(text=paste0("zone", p))) 
+  naturalAreasZ <- eval(parse(text=paste0("naturalAreasBinaryFocal", p))) 
+  protectedAreasZ <- eval(parse(text=paste0("protectedAreasNA", p))) 
+  
+SumResDensity <- raster(file.path(procDataDir, "combinedResistanceRaster_Sum.tif")) %>%
+  crop(., naturalAreasZ) %>%
+  mask(., naturalAreasZ) %>%
+  mask(., protectedAreasZ, inv=TRUE) %>%
+  calc(., fun = log) %>% #density has log normal distbn
+  scale(.) %>%
+  calc(., fun = rescaleR) %>%
+  calc(., fun = function(x){ifelse(x <= 1e-6, 0, x)}) #for prioritizer bug
+namm <- paste0("SumResDensity", p)
+assign(namm, SumResDensity)
+
+MeanResDensity <- raster(file.path(procDataDir, "combinedResistanceRaster_Mean.tif")) %>%
+  crop(., naturalAreasZ) %>%
+  mask(., naturalAreasZ) %>%
+  mask(., protectedAreasZ, inv=TRUE) %>%
+  calc(., fun = log) %>% #density has log normal distbn
+  scale(.) %>%
+  calc(., fun = rescaleR) %>%
+  calc(., fun = function(x){ifelse(x <= 1e-6, 0, x)}) #for prioritizer bug
+namm <- paste0("MeanResDensity", p)
+assign(namm, MeanResDensity)
+
+MaxResDensity <- raster(file.path(procDataDir, "combinedResistanceRaster_Max.tif")) %>%
+  crop(., naturalAreasZ) %>%
+  mask(., naturalAreasZ) %>%
+  mask(., protectedAreasZ, inv=TRUE) %>%
+  calc(., fun = log) %>% #density has log normal distbn
+  scale(.) %>%
+  calc(., fun = rescaleR) %>%
+  calc(., fun = function(x){ifelse(x <= 1e-6, 0, x)}) #for prioritizer bug
+namm <- paste0("MaxResDensity", p)
+assign(namm, MaxResDensity)
+
+} 
+
+
+## Merge ecoregion rasters to create complete rasters covering entire Monteregie ---------------
+
 Suitability <- merge(Suitability3, Suitability4)
 names(Suitability) <- specieslist
 
@@ -209,14 +249,14 @@ names(All) <- c(paste0(specieslist, "_habitatSuitability"),
                 paste0(specieslist, "_density"))
 
 
-## Set Prioritizr target values ----------------------------------------------------------------
+## Set target values ----------------------------------------------------------------
 
 # Budget
 Budget <- 0.20  
 costLayer3 <- naturalAreasBinaryFocal3
 costLayer4 <- naturalAreasBinaryFocal4
 
-# New budgets, set by by ecoregion size (numbe of natural area pixels in zone)
+# Ecoregion budgets, set by by ecoregion size (numbe of natural area pixels in zone)
 NumSitesGoal3 <- round(Budget * cellStats(naturalAreasBinaryFocal3, sum), 0)
 NumSitesGoal4 <- round(Budget * cellStats(naturalAreasBinaryFocal4, sum), 0)
 
@@ -337,7 +377,74 @@ rm(fctAll3, fctAll4, fctAllSol, fctAllSolPA, final)
 } # End statistic choice loop  
 
 
-## Scenario 2 -  using minimize_shortfall_objective in prioritizer----------------------------------------------
+## Scenario 2--------------------------------------------------------------------------------
+
+#SUM
+minValues <- sort(values(SumResDensity3), decreasing=TRUE)[NumSitesGoal3]
+sumResDensitySolutionBudget3 <- SumResDensity3
+values(sumResDensitySolutionBudget3) <- 0
+sumResDensitySolutionBudget3[Which(SumResDensity3 > minValues, cells=TRUE)] <- 1 
+overage <-  NumSitesGoal3 - cellStats(sumResDensitySolutionBudget3, sum)
+sumResDensitySolutionBudget3[sample(Which(SumResDensity3 == minValues, cells=TRUE), overage)] <- 1
+#
+minValues <- sort(values(SumResDensity4), decreasing=TRUE)[NumSitesGoal4]
+sumResDensitySolutionBudget4 <- SumResDensity4
+values(sumResDensitySolutionBudget4) <- 0
+sumResDensitySolutionBudget4[Which(SumResDensity4 > minValues, cells=TRUE)] <- 1 
+overage <-  NumSitesGoal4 - cellStats(sumResDensitySolutionBudget4, sum)
+sumResDensitySolutionBudget4[sample(Which(SumResDensity4 == minValues, cells=TRUE), overage)] <- 1
+
+# Final map,  ecoregions + protected Suitabilitys
+sumResDensitySol <- mosaic(sumResDensitySolutionBudget3, sumResDensitySolutionBudget4, fun="max", na.rm=TRUE) %>%
+  mask(., naturalAreasBinaryFocal)
+sumResDensitySolPA <- mosaic(sumResDensitySol, protectedAreasNA, fun="max", na.rm=TRUE)
+sumResDensitySolAll <- stack(sumResDensitySol, sumResDensitySolPA)
+
+
+#Mean
+minValues <- sort(values(MeanResDensity3), decreasing=TRUE)[NumSitesGoal3]
+meanResDensitySolutionBudget3 <- MeanResDensity3
+values(meanResDensitySolutionBudget3) <- 0
+meanResDensitySolutionBudget3[Which(MeanResDensity3 > minValues, cells=TRUE)] <- 1 
+overage <-  NumSitesGoal3 - cellStats(meanResDensitySolutionBudget3, sum)
+meanResDensitySolutionBudget3[sample(Which(MeanResDensity3 == minValues, cells=TRUE), overage)] <- 1
+#
+minValues <- sort(values(MeanResDensity4), decreasing=TRUE)[NumSitesGoal4]
+meanResDensitySolutionBudget4 <- MeanResDensity4
+values(meanResDensitySolutionBudget4) <- 0
+meanResDensitySolutionBudget4[Which(MeanResDensity4 > minValues, cells=TRUE)] <- 1 
+overage <-  NumSitesGoal4 - cellStats(meanResDensitySolutionBudget4, sum)
+meanResDensitySolutionBudget4[sample(Which(MeanResDensity4 == minValues, cells=TRUE), overage)] <- 1
+
+# Final map, sum suit, Suitability ecoregions + protected Suitabilitys
+meanResDensitySol <- mosaic(meanResDensitySolutionBudget3, meanResDensitySolutionBudget4, fun="max", na.rm=TRUE) %>%
+  mask(., naturalAreasBinaryFocal)
+meanResDensitySolPA <- mosaic(meanResDensitySol, protectedAreasNA, fun="max", na.rm=TRUE)
+meanResDensitySolAll <- stack(meanResDensitySol, meanResDensitySolPA)
+
+#Max
+minValues <- sort(values(MaxResDensity3), decreasing=TRUE)[NumSitesGoal3]
+maxResDensitySolutionBudget3 <- MaxResDensity3
+values(maxResDensitySolutionBudget3) <- 0
+maxResDensitySolutionBudget3[Which(MaxResDensity3 > minValues, cells=TRUE)] <- 1 
+overage <-  NumSitesGoal3 - cellStats(maxResDensitySolutionBudget3, sum)
+maxResDensitySolutionBudget3[sample(Which(MaxResDensity3 == minValues, cells=TRUE), overage)] <- 1
+#
+minValues <- sort(values(MaxResDensity4), decreasing=TRUE)[NumSitesGoal4]
+maxResDensitySolutionBudget4 <- MaxResDensity4
+values(maxResDensitySolutionBudget4) <- 0
+maxResDensitySolutionBudget4[Which(MaxResDensity4 > minValues, cells=TRUE)] <- 1 
+overage <-  NumSitesGoal4 - cellStats(maxResDensitySolutionBudget4, sum)
+maxResDensitySolutionBudget4[sample(Which(MaxResDensity4 == minValues, cells=TRUE), overage)] <- 1
+#
+# Final map, sum suit, Suitability ecoregions + protected Suitabilitys
+maxResDensitySol <- mosaic(maxResDensitySolutionBudget3, maxResDensitySolutionBudget4, fun="max", na.rm=TRUE) %>%
+  mask(., naturalAreasBinaryFocal)
+maxResDensitySolPA <- mosaic(maxResDensitySol, protectedAreasNA, fun="max", na.rm=TRUE)
+maxResDensitySolAll <- stack(maxResDensitySol, maxResDensitySolPA)
+
+
+## Scenario 3 -  using minimize_shortfall_objective in prioritizer----------------------------------------------
 
 ## Suitability
   # zone 3
@@ -445,8 +552,8 @@ minShortAllSol <- merge(minShortSol3, minShortSol4)
 minShortAllSolPA <- merge(minShortAllSol, protectedAreasNA)
 minShort_FinalAll <- stack(minShortAllSol, minShortAllSolPA)
 
-##
-## Scenario 3 -  using add_max_objective in prioritizer----------------------------------------------
+
+## Scenario 4 -  using add_max_objective in prioritizer----------------------------------------------
 
 ## Suitability
 # zone 3
@@ -545,9 +652,10 @@ maxUtilityAllSolPA <- merge(maxUtilityAllSol, protectedAreasNA)
 maxUtility_FinalAll <- stack(maxUtilityAllSol, maxUtilityAllSolPA)
 
 
+
 ## Combine and summarize output files --------------------------------------------------------------------
 
-numModels <- 20
+numModels <- 23
 
 # Raster stack all solns incl PA
 outputAll <- stack(sum_FinalAll[[1]],
@@ -562,6 +670,9 @@ outputAll <- stack(sum_FinalAll[[1]],
                    mean_FinalSuitability[[1]],
                    mean_FinalDensity[[1]],
                    mean_FinalArea[[1]],
+                   sumResDensitySolAll[[1]],
+                   meanResDensitySolAll[[1]],
+                   maxResDensitySolAll[[1]],
                    minShort_FinalAll[[1]],
                    minShort_FinalSuitability[[1]],
                    minShort_FinalDensity[[1]],  
@@ -583,6 +694,9 @@ mapNames <- c("SumAll",
   "MeanSuit",
   "MeanDensity",
   "MeanArea",
+  "SumResistDensity",
+  "MeanResistDensity",
+  "MaxResistDensity",
   "MSAll",
   "MSSuit",
   "MSDensity",
@@ -624,91 +738,138 @@ for(m in 1:numModels){
          }
   }
 
-barplot(allModelRep[1, ], cex.names=0.75, angle=30, beside=TRUE)
+#barplot(allModelRep[1, ], cex.names=0.75, angle=30, beside=TRUE) #Confirm solutions are the same size
 barplot(allModelRep[-1, ], cex.names=0.75, angle=30, beside=TRUE)
 
+repAll <- allModelRep[-1, c("SumAll", "MaxAll", "MeanAll", "MSAll", "MUAll")]
 
-  # Plot complete models representation of all features
-repAll <- allModelRep[c(2,5,8,11,14,3,6,9,12,15,4,7,10,13,16), c("SumAll", "MaxAll", "MeanAll", "MSAll", "MUAll")]
 
-barplot(repAll, 
+suitAll <- seq(from=1, to=nrow(repAll), by=3)
+densAll <- seq(from=2, to=nrow(repAll), by=3)
+areaAll <- seq(from=3, to=nrow(repAll), by=3)
+
+colours <- c("lightsalmon",  "lightsalmon1", "lightsalmon2", "lightsalmon3", "lightsalmon4",
+             "indianred1", "indianred2", "indianred",  "indianred3", "indianred4", 
+             "mediumpurple ", "mediumpurple1", "mediumpurple2",  "mediumpurple3")
+
+# Plot  models w representation of all features
+barplot((repAll[suitAll, ]), 
         beside=TRUE, 
-        names.arg=c("1d. Sum All", "2d. Max All", "3d. Mean All", "4d. Min Shortfall", "5d. Max Utility"),
-        col = c("lightsalmon",  "lightsalmon1", "lightsalmon2", "lightsalmon3", "lightsalmon4",
-                "indianred1", "indianred2", "indianred",  "indianred3", "indianred4", 
-                "mediumpurple ", "mediumpurple1", "mediumpurple2",  "mediumpurple3", "mediumpurple4"), 
+        names.arg= c("Sum All", "Max All", "Mean All", "Min Shortfall", "Max Utility"),
+        col = colours,
+        ylim=c(0, 0.7), 
         xlab="Model approach", 
-        ylab="% Representation",
-        ylim=c(0, 0.6))
-#abline(h=c(0.2, 0.4), col="grey")
+        ylab="% Representation", 
+        main="Habitat suitability")
+legend("topright", 
+       legend=specieslist, 
+       fill=colours,
+       cex=0.75)
 
-legend("topleft", 
-       legend=c("Suitability (sp 1-5)", "Density (sp 1-5)", "Area (sp 1-5)"), 
-       fill=c("lightsalmon2", "indianred2", "mediumpurple2"))
+barplot((repAll[densAll, ]), 
+        beside=TRUE, 
+        names.arg= c("Sum All", "Max All", "Mean All", "Min Shortfall", "Max Utility"),
+        col = colours,
+        ylim=c(0, 0.7), 
+        xlab="Model approach", 
+        ylab="% Representation", 
+        main="Current density")
+legend("topright", 
+       legend=specieslist, 
+       fill=colours, 
+       cex=0.75)
+
+barplot((repAll[areaAll, ]), 
+        beside=TRUE, 
+        names.arg= c("Sum All", "Max All", "Mean All", "Min Shortfall", "Max Utility"),
+        col = colours,
+        ylim=c(0, 0.7), 
+        xlab="Model approach", 
+        ylab="% Representation", 
+        main="Habitat area")
+legend("topright", 
+       legend=specieslist, 
+       fill=colours,
+       cex=0.75)
+
 
 ## Calculate raster correlations
 
 set.seed(10)
-subSamp <- sampleRandom(outputAll, size= ncell(outputAll[[1]]) * 0.25)
+#plot all model correlations
+subSamp <- sampleRandom(outputAll, size= ncell(outputAll[[1]]) * 0.5)
 cors <- cor(subSamp)
+corrplot(cors, "ellipse", "upper", tl.cex=0.65, diag=FALSE)
 
-corrplot(cors, "ellipse", type="upper", diag=FALSE)
+#complete models only
+corsAll <- cor(sampleRandom(subset(outputAll, c(1,5,9,16,20)), size= ncell(outputAll[[1]]) * 0.5 ))
+corrplot.mixed(corsAll, upper="ellipse", lower="number", tl.srt = 0, lower.col="black", tl.cex=0.65, tl.pos="d", number.cex=0.75)
 
-corsAll <- cor(sampleRandom(subset(outputAll, c(1,5,9,13,17)), size= ncell(outputAll[[1]]) * 0.25 ))
-corrplot(corsAll, "number", type="upper", diag=TRUE)
+# density only
+corsDensity <- cor(sampleRandom(subset(outputAll, c(3,7,11, 13,14,15,18,22)), size= ncell(outputAll[[1]]) * 0.5 ))
+
+dev.new()
+corrplot.mixed(corsDensity, upper="ellipse", lower="number", lower.col="black", tl.pos="d", tl.cex=0.65)
 
 
 
 # jaccard
-jacs <- cross_jaccard(subset(outputAll, 1:20), thresholds = 0.05)
+jacs <- cross_jaccard(outputAll, thresholds = 0.05)
 jacsAll <- cross_jaccard(subset(outputAll, c(1,5,9,13,17)), thresholds = 0.05)
 corrplot(as.matrix(jacsAll$`0.05`), "ellipse", type="upper", diag=FALSE, is.corr=FALSE)
 
 
-## Layers with PA added
-outputAllPA <- stack(sum_FinalAll[[2]],
-                   sum_FinalSuitability[[2]], 
-                   sum_FinalDensity[[2]], 
-                   sum_FinalArea[[2]],
-                   max_FinalAll[[2]],
-                   max_FinalSuitability[[2]],
-                   max_FinalDensity[[2]],
-                   max_FinalArea[[2]],
-                   mean_FinalAll[[2]],
-                   mean_FinalSuitability[[2]],
-                   mean_FinalDensity[[2]],
-                   mean_FinalArea[[2]],
-                   minShort_FinalAll[[2]],
-                   minShort_FinalSuitability[[2]],
-                   minShort_FinalDensity[[2]],  
-                   minShort_FinalArea[[2]],
-                   maxUtility_FinalAll[[2]],
-                   maxUtility_FinalSuitability[[2]],
-                   maxUtility_FinalDensity[[2]],  
-                   maxUtility_FinalArea[[2]])
+
+
+## Collect layers with PA added
+outputAllPA <-  stack(sum_FinalAll[[2]],
+                      sum_FinalSuitability[[2]], 
+                      sum_FinalDensity[[2]], 
+                      sum_FinalArea[[2]],
+                      max_FinalAll[[2]],
+                      max_FinalSuitability[[2]],
+                      max_FinalDensity[[2]],
+                      max_FinalArea[[2]],
+                      mean_FinalAll[[2]],
+                      mean_FinalSuitability[[2]],
+                      mean_FinalDensity[[2]],
+                      mean_FinalArea[[2]],
+                      sumResDensitySolAll[[2]],
+                      meanResDensitySolAll[[2]],
+                      maxResDensitySolAll[[2]],
+                      minShort_FinalAll[[2]],
+                      minShort_FinalSuitability[[2]],
+                      minShort_FinalDensity[[2]],  
+                      minShort_FinalArea[[2]],
+                      maxUtility_FinalAll[[2]],
+                      maxUtility_FinalSuitability[[2]],
+                      maxUtility_FinalDensity[[2]],  
+                      maxUtility_FinalArea[[2]])
 
 mapNamesPA <- paste0(c("SumAll",
-              "SumSuit",
-              "SumDensity",
-              "SumArea",
-              "MaxAll",
-              "MaxSuit",
-              "MaxDensity",
-              "MaxArea",
-              "MeanAll",
-              "MeanSuit",
-              "MeanDensity",
-              "MeanArea",
-              "MSAll",
-              "MSSuit",
-              "MSDensity",
-              "MSArea",
-              "MUAll",
-              "MUSuit",
-              "MUDensity",
-              "MUArea"), "PA")
+                       "SumSuit",
+                       "SumDensity",
+                       "SumArea",
+                       "MaxAll",
+                       "MaxSuit",
+                       "MaxDensity",
+                       "MaxArea",
+                       "MeanAll",
+                       "MeanSuit",
+                       "MeanDensity",
+                       "MeanArea",
+                       "SumResistDensity",
+                       "MeanResistDensity",
+                       "MaxResistDensity",
+                       "MSAll",
+                       "MSSuit",
+                       "MSDensity",
+                       "MSArea",
+                       "MUAll",
+                       "MUSuit",
+                       "MUDensity",
+                       "MUArea"), "_PA")
 names(outputAllPA) <- mapNamesPA
-
 
 
 
