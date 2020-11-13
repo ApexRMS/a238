@@ -48,8 +48,6 @@ speciesID <- read.csv(
 					stringsAsFactors = FALSE)
 specieslist <- speciesID$Code
 
-#specieslist <- c("PLCI", "RASY", "URAM", "MAAM", "BLBR")
-
 
 ## Load resistance files for all species
 
@@ -89,13 +87,13 @@ combinedResistanceSum <- stackApply(resistanceAll, nlayers(resistanceAll), "sum"
 
 
 writeRaster(combinedResistanceMean, 
-            filename=file.path(outDir,  "combinedResistanceRaster_Mean.tif"), 
+            filename=file.path(procDataDir,  "combinedResistanceRaster_Mean.tif"), 
             overwrite=TRUE)
 writeRaster(combinedResistanceMax, 
-            filename=file.path(outDir,  "combinedResistanceRaster_Max.tif"), 
+            filename=file.path(procDataDir,  "combinedResistanceRaster_Max.tif"), 
             overwrite=TRUE)
 writeRaster(combinedResistanceSum, 
-            filename=file.path(outDir,  "combinedResistanceRaster_Sum.tif"), 
+            filename=file.path(procDataDir,  "combinedResistanceRaster_Sum.tif"), 
             overwrite=TRUE)
 
 
