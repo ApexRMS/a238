@@ -37,3 +37,9 @@ LuReclassed[filled==1] <- 1000
 writeRaster(LuReclassed, 
             "Data/Processed/Generic_Resistance_FocalAreaBuffer.tif", 
             overwrite = TRUE)
+
+LU_generic <- LU
+LU_generic[filled==1] <- 400
+writeRaster(LU_generic, 
+            "Data/Processed/Generic_LU_FocalAreaBuffer.tif", 
+            overwrite = TRUE)
