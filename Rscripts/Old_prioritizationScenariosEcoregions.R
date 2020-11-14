@@ -11,6 +11,10 @@
 #  
 #   Outputs: prioritization solution rasters for scenarios
 #    
+#   * Notes - the code is really long.
+#           - ignore s w "Discarded datum Unknown based on GRS80 ellipsoid in CRS definition,
+#               but +towgs84= values preserved"" Due to sp/sf incompatibility but doesn't affect
+#               data.
 #                                                                   
 # Script by C Tucker for ApexRMS 									
 #####################################################################
@@ -189,6 +193,7 @@ assign(namm, All)
 
 
 ## Load and process summary current density files for scenario 2------------------------------------------------
+  # Current density calculated on summarized (sum, mean, max) resistance layer
 
 for(p in c(3, 4)){ # run for both zones, all species
   
@@ -211,7 +216,7 @@ MeanResDensity <- raster(file.path(procDataDir, "combined_Resistance_Mean_FocalA
   crop(., naturalAreasZ) %>%
   mask(., naturalAreasZ) %>%
   mask(., protectedAreasZ, inv=TRUE) %>%
-  #calc(., fun = log) %>% #density has log normal distbn
+  calc(., fun = log) %>% #density has log normal distbn
   scale(.) %>%
   calc(., fun = rescaleR) %>%
   calc(., fun = function(x){ifelse(x <= 1e-6, 0, x)}) #for prioritizer bug
@@ -222,7 +227,7 @@ MaxResDensity <- raster(file.path(procDataDir, "combined_Resistance_Max_FocalAre
   crop(., naturalAreasZ) %>%
   mask(., naturalAreasZ) %>%
   mask(., protectedAreasZ, inv=TRUE) %>%
-  #calc(., fun = log) %>% #density has log normal distbn
+  calc(., fun = log) %>% #density has log normal distbn
   scale(.) %>%
   calc(., fun = rescaleR) %>%
   calc(., fun = function(x){ifelse(x <= 1e-6, 0, x)}) #for prioritizer bug
@@ -233,6 +238,8 @@ assign(namm, MaxResDensity)
 
 
 ## Merge ecoregion rasters to create complete rasters covering entire Monteregie ---------------
+
+  # For calculating representation later
 
 Suitability <- merge(Suitability3, Suitability4)
 names(Suitability) <- specieslist
@@ -261,27 +268,34 @@ NumSitesGoal3 <- round(Budget * cellStats(naturalAreasBinaryFocal3, sum), 0)
 NumSitesGoal4 <- round(Budget * cellStats(naturalAreasBinaryFocal4, sum), 0)
 
 
+###################################################################################################
+## Prioritization scenarios evaluating ecoregions separately--------------------------------------
 
-## Prioritization scenarios evaluating ecoregions separately----------------------------------------
 
-
-## Scenario 1 - take features from multiple species and kinds of data and summarize into a single layer. 
-    # Calculate  a summary value per pixel across all species and feature layers 
-    # Choice of potential summary metrics - sum, median, max
+## Scenario 1 - take features from multiple species and feature types and summarize into a single layer. 
+  # Back end approach  
+  # Calculate  a summary value per pixel across all species and feature layers 
+  # Choice of potential summary metrics - sum, median, max
 
 statChoice <- c("sum", "max", "mean")
 
-for(k in statChoice){
+for(k in statChoice){ # loop over stat choices
     
-## Habitat Suitability
+## Habitat Suitability only
 fctSuitability3 <- stackApply(Suitability3, nlayers(Suitability3), k)
+  # ID value of NumSitesGoal3-th site
 minValues <- sort(values(fctSuitability3), decreasing=TRUE)[NumSitesGoal3]
+  #layer  to store solution
 fctSuitabilitySolutionBudget3 <- fctSuitability3
+  # start with no cells protected
 fctSuitabilitySolutionBudget3[fctSuitabilitySolutionBudget3] <- 0
-fctSuitabilitySolutionBudget3[Which(fctSuitability3 > minValues, cells=TRUE)] <- 1 
+  # all cells w values greater than minVal are protected (1)
+fctSuitabilitySolutionBudget3[Which(fctSuitability3 > minValues, cells=TRUE)] <- 1
+  # identify how many remain cells to protect given target ('overage')
 overage <-  NumSitesGoal3 - cellStats(fctSuitabilitySolutionBudget3, sum)
+  # randomly select overage# from cells == minVal
 fctSuitabilitySolutionBudget3[sample(Which(fctSuitability3 == minValues, cells=TRUE), overage)] <- 1
-#
+#Repeat for Zone 4
 fctSuitability4 <- stackApply(Suitability4, nlayers(Suitability4), k)
 minValues <- sort(values(fctSuitability4), decreasing=TRUE)[NumSitesGoal4]
 fctSuitabilitySolutionBudget4 <- fctSuitability4
@@ -289,21 +303,21 @@ fctSuitabilitySolutionBudget4[fctSuitabilitySolutionBudget4] <- 0
 fctSuitabilitySolutionBudget4[Which(fctSuitability4 > minValues, cells=TRUE)] <- 1 
 overage <-  NumSitesGoal4 - cellStats(fctSuitabilitySolutionBudget4, sum)
 fctSuitabilitySolutionBudget4[sample(Which(fctSuitability4 == minValues, cells=TRUE), overage)] <- 1
-# Final map
+# Final map - merge two zone solution maps, assign name based on stat choice
 fctSuitabilitySol <- mosaic(fctSuitabilitySolutionBudget3, fctSuitabilitySolutionBudget4, fun="max", na.rm=TRUE) 
 fctSuitabilitySolPA <- mosaic(fctSuitabilitySol, protectedAreasNA, fun="max", na.rm=TRUE)
 final <- stack(fctSuitabilitySol, fctSuitabilitySolPA)
 assign(paste0(k, "_FinalSuitability"), final)
-rm(fctSuitability3, fctSuitability4, fctSuitabilitySol, fctSuitabilitySolPA, final)
+rm(minValues, overage, fctSuitability3, fctSuitability4, fctSuitabilitySol, fctSuitabilitySolPA, final, fctSuitabilitySolutionBudget3, fctSuitabilitySolutionBudget4)
 
-## Density
+## Density only
 fctDensity3 <- stackApply(Density3, nlayers(Density3), k)
-minValues <- sort(values(fctDensity3), decreasing=TRUE)[NumSitesGoal3]
+minValues <- sort(values(fctDensity3), decreasing=TRUE)[NumSitesGoal3] 
 fctDensitySolutionBudget3 <- fctDensity3
-fctDensitySolutionBudget3[fctDensitySolutionBudget3] <- 0
+fctDensitySolutionBudget3[fctDensitySolutionBudget3] <- 0 
 fctDensitySolutionBudget3[Which(fctDensity3 > minValues, cells=TRUE)] <- 1 
-overage <-  NumSitesGoal3 - cellStats(fctDensitySolutionBudget3, sum)
-fctDensitySolutionBudget3[sample(Which(fctDensity3 == minValues, cells=TRUE), overage)] <- 1
+overage <-  NumSitesGoal3 - cellStats(fctDensitySolutionBudget3, sum) 
+fctDensitySolutionBudget3[sample(Which(fctDensity3 == minValues, cells=TRUE), overage)] <- 1 
 #
 fctDensity4 <- stackApply(Density4, nlayers(Density4), k)
 minValues <- sort(values(fctDensity4), decreasing=TRUE)[NumSitesGoal4]
@@ -317,9 +331,9 @@ fctDensitySol <- mosaic(fctDensitySolutionBudget3, fctDensitySolutionBudget4, fu
 fctDensitySolPA <- mosaic(fctDensitySol, protectedAreasNA, fun="max", na.rm=TRUE)
 final <- stack(fctDensitySol, fctDensitySolPA)
 assign(paste0(k, "_FinalDensity"), final)
-rm(fctDensity3, fctDensity4, fctDensitySol, fctDensitySolPA, final)
+rm(minValues, overage, fctDensity3, fctDensity4, fctDensitySol, fctDensitySolPA, final, fctDensitySolutionBudget3, fctDensitySolutionBudget4)
 
-## Habitat area
+## Habitat area only
 fctArea3 <- stackApply(Area3, nlayers(Area3), k)
 minValues <- sort(values(fctArea3), decreasing=TRUE)[NumSitesGoal3]
 fctAreaSolutionBudget3 <- fctArea3
@@ -340,7 +354,7 @@ fctAreaSol <- mosaic(fctAreaSolutionBudget3, fctAreaSolutionBudget4, fun="max", 
 fctAreaSolPA <- mosaic(fctAreaSol, protectedAreasNA, fun="max", na.rm=TRUE)
 final <- stack(fctAreaSol, fctAreaSolPA)
 assign(paste0(k, "_FinalArea"), final)
-rm(fctArea3, fctArea4, fctAreaSol, fctAreaSolPA, final)
+rm(minValues, overage, fctArea3, fctArea4, fctAreaSol, fctAreaSolPA, final, fctAreaSolutionBudget3, fctAreaSolutionBudget4)
 
 ## All
 fctAll3 <- stackApply(All3, nlayers(All3), k)
@@ -363,71 +377,84 @@ fctAllSol <- mosaic(fctAllSolutionBudget3, fctAllSolutionBudget4, fun="max", na.
 fctAllSolPA <- mosaic(fctAllSol, protectedAreasNA, fun="max", na.rm=TRUE)
 final <- stack(fctAllSol, fctAllSolPA)
 assign(paste0(k, "_FinalAll"), final)
-rm(fctAll3, fctAll4, fctAllSol, fctAllSolPA, final)
+rm(minValues, overage, fctAll3, fctAll4, fctAllSol, fctAllSolPA, final, fctAllSolutionBudget3, fctAllSolutionBudget4)
 
 } # End statistic choice loop  
 
+  # Outputs - k_FinalAll stacks with a solution, and solution w PA added in
 
 ## Scenario 2--------------------------------------------------------------------------------
-#Sum
+  # Front-end
+  # Input = 1 layer, which is a summary of resistances to produce density
+  # Summarization via 3 methods, mean, max, sum
+
+  # Sum of resistances
 minValues <- sort(values(SumResDensity3), decreasing=TRUE)[NumSitesGoal3]
 sumResDensitySolutionBudget3 <- SumResDensity3
 sumResDensitySolutionBudget3[sumResDensitySolutionBudget3] <- 0
 sumResDensitySolutionBudget3[Which(SumResDensity3 > minValues, cells=TRUE)] <- 1 
 overage <-  NumSitesGoal3 - cellStats(sumResDensitySolutionBudget3, sum)
 sumResDensitySolutionBudget3[sample(Which(SumResDensity3 == minValues, cells=TRUE), overage)] <- 1
-#
+  #
 minValues <- sort(values(SumResDensity4), decreasing=TRUE)[NumSitesGoal4]
 sumResDensitySolutionBudget4 <- SumResDensity4
 sumResDensitySolutionBudget4[sumResDensitySolutionBudget4] <- 0
 sumResDensitySolutionBudget4[Which(SumResDensity4 > minValues, cells=TRUE)] <- 1 
 overage <-  NumSitesGoal4 - cellStats(sumResDensitySolutionBudget4, sum)
 sumResDensitySolutionBudget4[sample(Which(SumResDensity4 == minValues, cells=TRUE), overage)] <- 1
-# Final map
+  # Final map
 sumResDensitySol <- mosaic(sumResDensitySolutionBudget3, sumResDensitySolutionBudget4, fun="max", na.rm=TRUE) 
 sumResDensitySolPA <- mosaic(sumResDensitySol, protectedAreasNA, fun="max", na.rm=TRUE)
 sumResDensitySolAll <- stack(sumResDensitySol, sumResDensitySolPA)
+rm(minValues, overage)
 
-#Mean
+  # Mean of resistances
 minValues <- sort(values(MeanResDensity3), decreasing=TRUE)[NumSitesGoal3]
 meanResDensitySolutionBudget3 <- SumResDensity3
 meanResDensitySolutionBudget3[meanResDensitySolutionBudget3] <- 0
 meanResDensitySolutionBudget3[Which(MeanResDensity3 > minValues, cells=TRUE)] <- 1 
 overage <-  NumSitesGoal3 - cellStats(meanResDensitySolutionBudget3, sum)
 meanResDensitySolutionBudget3[sample(Which(MeanResDensity3 == minValues, cells=TRUE), overage)] <- 1
-#
+  #
 minValues <- sort(values(MeanResDensity4), decreasing=TRUE)[NumSitesGoal4]
 meanResDensitySolutionBudget4 <- SumResDensity4
 meanResDensitySolutionBudget4[meanResDensitySolutionBudget4] <- 0
 meanResDensitySolutionBudget4[Which(MeanResDensity4 > minValues, cells=TRUE)] <- 1 
 overage <-  NumSitesGoal3 - cellStats(meanResDensitySolutionBudget4, sum)
 meanResDensitySolutionBudget4[sample(Which(MeanResDensity4 == minValues, cells=TRUE), overage)] <- 1
-# Final map
+  # Final map
 meanResDensitySol <- mosaic(meanResDensitySolutionBudget3, meanResDensitySolutionBudget4, fun="max", na.rm=TRUE) 
 meanResDensitySolPA <- mosaic(meanResDensitySol, protectedAreasNA, fun="max", na.rm=TRUE)
 meanResDensitySolAll <- stack(meanResDensitySol, meanResDensitySolPA)
+rm(minValues, overage)
 
-#Max
+  # Max of resistances
 minValues <- sort(values(MaxResDensity3), decreasing=TRUE)[NumSitesGoal3]
 maxResDensitySolutionBudget3 <- MaxResDensity3
 maxResDensitySolutionBudget3[maxResDensitySolutionBudget3] <- 0
 maxResDensitySolutionBudget3[Which(MaxResDensity3 > minValues, cells=TRUE)] <- 1 
 overage <-  NumSitesGoal3 - cellStats(maxResDensitySolutionBudget3, sum)
 maxResDensitySolutionBudget3[sample(Which(MaxResDensity3 == minValues, cells=TRUE), overage)] <- 1
-#
+  #
 minValues <- sort(values(MaxResDensity4), decreasing=TRUE)[NumSitesGoal4]
 maxResDensitySolutionBudget4 <- MaxResDensity4
 maxResDensitySolutionBudget4[maxResDensitySolutionBudget4] <- 0
 maxResDensitySolutionBudget4[Which(MaxResDensity4 > minValues, cells=TRUE)] <- 1 
 overage <-  NumSitesGoal4 - cellStats(maxResDensitySolutionBudget4, sum)
 maxResDensitySolutionBudget4[sample(Which(MaxResDensity4 == minValues, cells=TRUE), overage)] <- 1
-# Final map
+  # Final map
 maxResDensitySol <- mosaic(maxResDensitySolutionBudget3, maxResDensitySolutionBudget4, fun="max", na.rm=TRUE) 
 maxResDensitySolPA <- mosaic(maxResDensitySol, protectedAreasNA, fun="max", na.rm=TRUE)
 maxResDensitySolAll <- stack(maxResDensitySol, maxResDensitySolPA)
+rm(minValues, overage)
+
+  # Outputs - statResDensitySolAll containing solution and solution + PA
 
 
 ## Scenario 3 -  using minimize_shortfall_objective in prioritizer----------------------------------------------
+  #Back end
+  # Using all input layer, apply a multiobjective algorithm
+  # minimize shortfall
 
 ## Suitability
   # zone 3
@@ -438,8 +465,6 @@ minShortSuitProb3 <- problem(costLayer3, Suitability3) %>% #input is the cost su
   add_binary_decisions() #inclusion vs no-inclusion	
 presolve_check(minShortSuitProb3) # < 30s
 minShortSuitSol3 <- solve(minShortSuitProb3)
-repSuit3 <- feature_representation(minShortSuitProb3, minShortSuitSol3)
-freq(minShortSuitSol3)[2, "count"]/c(freq(minShortSuitSol3)[1, "count"] + freq(minShortSuitSol3)[2, "count"])
   # zone 4
 minShortSuitProb4 <- problem(costLayer4, Suitability4) %>% #input is the cost surface + features 
   add_min_shortfall_objective(NumSitesGoal4) %>% #minimize cost surface
@@ -449,8 +474,8 @@ minShortSuitProb4 <- problem(costLayer4, Suitability4) %>% #input is the cost su
 presolve_check(minShortSuitProb4) # < 30s
 minShortSuitSol4 <- solve(minShortSuitProb4)
   # Final map, sum suit, all ecoregions + protected areas
-minShortSuitSol <- merge(minShortSuitSol3, minShortSuitSol4)
-minShortSuitSolPA <- merge(minShortSuitSol, protectedAreasNA)
+minShortSuitSol <- mosaic(minShortSuitSol3, minShortSuitSol4, fun="max", na.rm=TRUE)
+minShortSuitSolPA <- mosaic(minShortSuitSol, protectedAreasNA, fun="max", na.rm=TRUE)
 minShort_FinalSuitability <- stack(minShortSuitSol, minShortSuitSolPA)
 
 ## Density  
@@ -471,8 +496,8 @@ minShortdensityProb4 <- problem(costLayer4, Density4) %>% #input is the cost sur
 presolve_check(minShortdensityProb4) # < 30s
 minShortdensitySol4 <- solve(minShortdensityProb4)
   # Final map, sum suit, all ecoregions + protected areas
-minShortDensitySol <- merge(minShortdensitySol3, minShortdensitySol4)
-minShortDensitySolPA <- merge(minShortDensitySol, protectedAreasNA)
+minShortDensitySol <- mosaic(minShortdensitySol3, minShortdensitySol4, fun="max", na.rm=TRUE)
+minShortDensitySolPA <- mosaic(minShortDensitySol, protectedAreasNA, fun="max", na.rm=TRUE)
 minShort_FinalDensity <- stack(minShortDensitySol, minShortDensitySolPA)
 
 ## Area
@@ -493,8 +518,8 @@ minShortAreaProb4 <- problem(costLayer4, Area4) %>% #input is the cost surface +
 presolve_check(minShortAreaProb4) # < 30s
 minShortAreaSol4 <- solve(minShortAreaProb4)
 # Final map, sum suit, all ecoregions + protected areas
-minShortAreaSol <- merge(minShortAreaSol3, minShortAreaSol4)
-minShortAreaSolPA <- merge(minShortAreaSol, protectedAreasNA)
+minShortAreaSol <- mosaic(minShortAreaSol3, minShortAreaSol4, fun="max", na.rm=TRUE)
+minShortAreaSolPA <- mosaic(minShortAreaSol, protectedAreasNA, fun="max", na.rm=TRUE)
 minShort_FinalArea <- stack(minShortAreaSol, minShortAreaSolPA)
 
 ## All
@@ -517,8 +542,8 @@ minShortProb4 <- problem(costLayer4, All4) %>% #input is the cost surface + feat
 presolve_check(minShortProb4)
 minShortSol4 <- solve(minShortProb4)
   # Final map, sum suit, all ecoregions + protected areas
-minShortAllSol <- merge(minShortSol3, minShortSol4)
-minShortAllSolPA <- merge(minShortAllSol, protectedAreasNA)
+minShortAllSol <- mosaic(minShortSol3, minShortSol4, fun="max", na.rm=TRUE)
+minShortAllSolPA <- mosaic(minShortAllSol, protectedAreasNA, fun="max", na.rm=TRUE)
 minShort_FinalAll <- stack(minShortAllSol, minShortAllSolPA)
 
 
@@ -540,8 +565,8 @@ maxUtilitySuitProb4 <- problem(costLayer4, Suitability4) %>% #input is the cost 
 presolve_check(maxUtilitySuitProb4) # < 30s
 maxUtilitySuitSol4 <- solve(maxUtilitySuitProb4)
 # Final map, sum suit, all ecoregions + protected areas
-maxUtilitySuitSol <- merge(maxUtilitySuitSol3, maxUtilitySuitSol4)
-maxUtilitySuitSolPA <- merge(maxUtilitySuitSol, protectedAreasNA)
+maxUtilitySuitSol <- mosaic(maxUtilitySuitSol3, maxUtilitySuitSol4, fun="max", na.rm=TRUE)
+maxUtilitySuitSolPA <- mosaic(maxUtilitySuitSol, protectedAreasNA, fun="max", na.rm=TRUE)
 maxUtility_FinalSuitability <- stack(maxUtilitySuitSol, maxUtilitySuitSolPA)
 
 ## Density  
@@ -560,8 +585,8 @@ maxUtilitydensityProb4 <- problem(costLayer4, Density4) %>% #input is the cost s
 presolve_check(maxUtilitydensityProb4) # < 30s
 maxUtilitydensitySol4 <- solve(maxUtilitydensityProb4)
 # Final map, sum suit, all ecoregions + protected areas
-maxUtilityDensitySol <- merge(maxUtilitydensitySol3, maxUtilitydensitySol4)
-maxUtilityDensitySolPA <- merge(maxUtilityDensitySol, protectedAreasNA)
+maxUtilityDensitySol <- mosaic(maxUtilitydensitySol3, maxUtilitydensitySol4, fun="max", na.rm=TRUE)
+maxUtilityDensitySolPA <- mosaic(maxUtilityDensitySol, protectedAreasNA, fun="max", na.rm=TRUE)
 maxUtility_FinalDensity <- stack(maxUtilityDensitySol, maxUtilityDensitySolPA)
 
 ## Area
@@ -580,8 +605,8 @@ maxUtilityAreaProb4 <- problem(costLayer4, Area4) %>% #input is the cost surface
 presolve_check(maxUtilityAreaProb4) # < 30s
 maxUtilityAreaSol4 <- solve(maxUtilityAreaProb4)
 # Final map, sum suit, all ecoregions + protected areas
-maxUtilityAreaSol <- merge(maxUtilityAreaSol3, maxUtilityAreaSol4)
-maxUtilityAreaSolPA <- merge(maxUtilityAreaSol, protectedAreasNA)
+maxUtilityAreaSol <- mosaic(maxUtilityAreaSol3, maxUtilityAreaSol4, fun="max", na.rm=TRUE)
+maxUtilityAreaSolPA <- mosaic(maxUtilityAreaSol, protectedAreasNA, fun="max", na.rm=TRUE)
 maxUtility_FinalArea <- stack(maxUtilityAreaSol, maxUtilityAreaSolPA)
 
 ## All
@@ -602,8 +627,8 @@ maxUtilityProb4 <- problem(costLayer4, All4) %>% #input is the cost surface + fe
 presolve_check(maxUtilityProb4)
 maxUtilitySol4 <- solve(maxUtilityProb4)
 # Final map, sum suit, all ecoregions + protected areas
-maxUtilityAllSol <- merge(maxUtilitySol3, maxUtilitySol4)
-maxUtilityAllSolPA <- merge(maxUtilityAllSol, protectedAreasNA)
+maxUtilityAllSol <- mosaic(maxUtilitySol3, maxUtilitySol4, fun="max", na.rm=TRUE)
+maxUtilityAllSolPA <- mosaic(maxUtilityAllSol, protectedAreasNA, fun="max", na.rm=TRUE)
 maxUtility_FinalAll <- stack(maxUtilityAllSol, maxUtilityAllSolPA)
 
 
