@@ -1,6 +1,6 @@
 #####################################################################
 # a238 Multispecies prioritization for the Monteregie       
-# Explore approaches to prioritizing the region for 5 focal species per 2 ecoregions
+# Explore approaches to prioritizing the region
 # 10-2020                                       					
 #                             
 #	1.Inputs (for focal species):                                   
@@ -9,7 +9,7 @@
 #	- natural areas layer 
 #	- ecoregions layer
 #  
-#   Outputs:
+#   Outputs: prioritization solution rasters for scenarios
 #    
 #                                                                   
 # Script by C Tucker for ApexRMS 									
@@ -35,7 +35,7 @@ setwd("c:/Users/carol/Dropbox/Documents/ApexRMS/Work/A238 - Multispecies Connect
 ## Directories
 rawDataDir <- "Data/Raw"
 procDataDir <- "Data/Processed"
-outDir <- "Results"
+outDir <- "Results/PrioritizationMaps"
 
 ## Functions 
 rescaleR <- function(x, new.min = 0, new.max = 1) {
@@ -131,7 +131,7 @@ habitatSuitability <- raster(file.path(procDataDir, paste0(species, "_HabitatSui
       crop(., naturalAreasZ) %>%
       mask(., naturalAreasZ) %>%
       mask(., protectedAreasZ, inv=TRUE) %>%
-      calc(., fun = log) %>% #density has log normal distbn
+     # calc(., fun = log) %>% #density has log normal distbn
       scale(.) %>%
       calc(., fun = rescaleR) %>%
       calc(., fun = function(x){ifelse(x <= 1e-6, 0, x)}) #for prioritizer bug
@@ -142,7 +142,7 @@ habitatArea <- raster(file.path(procDataDir, paste0(species, "_HabitatArea_Focal
   crop(., naturalAreasZ) %>%
   mask(., naturalAreasZ) %>%
   mask(., protectedAreasZ, inv=TRUE) %>%
-  calc(., fun = log) %>% #density has log normal distbn
+  #calc(., fun = log) %>% #density has log normal distbn
   scale(.) %>%
   calc(., fun = rescaleR) %>%
   calc(., fun = function(x){ifelse(x <= 1e-6, 0, x)}) #for prioritizer bug
@@ -151,7 +151,7 @@ assign(nam4, habitatArea)
 
 rm(density, habitatSuitability, habitatArea)
 	} # Finish species data loop
-#Ignore warnings
+  #Ignore warnings
 
 ## Combine into stacks, by zone and feature type 
 Suitability <- stack(evaltext(specieslist, "_habitatSuitability"))  
@@ -181,14 +181,14 @@ names(All) <- c(paste0(specieslist, "_habitatSuitability"),
 namm <- paste0("All", j)
 assign(namm, All)
 
-# Ignore warnings (sp/sf proj issue)
+  # Ignore warnings (sp/sf proj issue)
 } # Finish ecoregion loop
 
-# Output is: All3 and All4 (rasterStacks with all features), 
-# Area3/Area4, Suitability3/Suitability 4. and Density3/4 (rasterStacks for types of features)
+  # Output is: All3 and All4 (rasterStacks with all features), 
+  # Area3/Area4, Suitability3/Suitability 4. and Density3/4 (rasterStacks for types of features)
 
 
-## Load summary current density files for scenario 3------------------------------------------------
+## Load and process summary current density files for scenario 2------------------------------------------------
 
 for(p in c(3, 4)){ # run for both zones, all species
   
@@ -196,7 +196,7 @@ for(p in c(3, 4)){ # run for both zones, all species
   naturalAreasZ <- eval(parse(text=paste0("naturalAreasBinaryFocal", p))) 
   protectedAreasZ <- eval(parse(text=paste0("protectedAreasNA", p))) 
   
-SumResDensity <- raster(file.path(procDataDir, "combinedResistanceRaster_Sum.tif")) %>%
+SumResDensity <- raster(file.path(procDataDir, "combined_Resistance_Sum_FocalAreaBuffer_out_cum_curmap.tif")) %>%
   crop(., naturalAreasZ) %>%
   mask(., naturalAreasZ) %>%
   mask(., protectedAreasZ, inv=TRUE) %>%
@@ -207,22 +207,22 @@ SumResDensity <- raster(file.path(procDataDir, "combinedResistanceRaster_Sum.tif
 namm <- paste0("SumResDensity", p)
 assign(namm, SumResDensity)
 
-MeanResDensity <- raster(file.path(procDataDir, "combinedResistanceRaster_Mean.tif")) %>%
+MeanResDensity <- raster(file.path(procDataDir, "combined_Resistance_Mean_FocalAreaBuffer_out_cum_curmap.tif")) %>%
   crop(., naturalAreasZ) %>%
   mask(., naturalAreasZ) %>%
   mask(., protectedAreasZ, inv=TRUE) %>%
-  calc(., fun = log) %>% #density has log normal distbn
+  #calc(., fun = log) %>% #density has log normal distbn
   scale(.) %>%
   calc(., fun = rescaleR) %>%
   calc(., fun = function(x){ifelse(x <= 1e-6, 0, x)}) #for prioritizer bug
 namm <- paste0("MeanResDensity", p)
 assign(namm, MeanResDensity)
 
-MaxResDensity <- raster(file.path(procDataDir, "combinedResistanceRaster_Max.tif")) %>%
+MaxResDensity <- raster(file.path(procDataDir, "combined_Resistance_Max_FocalAreaBuffer_out_cum_curmap.tif")) %>%
   crop(., naturalAreasZ) %>%
   mask(., naturalAreasZ) %>%
   mask(., protectedAreasZ, inv=TRUE) %>%
-  calc(., fun = log) %>% #density has log normal distbn
+  #calc(., fun = log) %>% #density has log normal distbn
   scale(.) %>%
   calc(., fun = rescaleR) %>%
   calc(., fun = function(x){ifelse(x <= 1e-6, 0, x)}) #for prioritizer bug
@@ -261,13 +261,13 @@ NumSitesGoal3 <- round(Budget * cellStats(naturalAreasBinaryFocal3, sum), 0)
 NumSitesGoal4 <- round(Budget * cellStats(naturalAreasBinaryFocal4, sum), 0)
 
 
+
 ## Prioritization scenarios evaluating ecoregions separately----------------------------------------
+
 
 ## Scenario 1 - take features from multiple species and kinds of data and summarize into a single layer. 
     # Calculate  a summary value per pixel across all species and feature layers 
-    # Rescale for prioritizer
-
- # Choice of potential summary metrics - sum, median, max
+    # Choice of potential summary metrics - sum, median, max
 
 statChoice <- c("sum", "max", "mean")
 
@@ -277,22 +277,20 @@ for(k in statChoice){
 fctSuitability3 <- stackApply(Suitability3, nlayers(Suitability3), k)
 minValues <- sort(values(fctSuitability3), decreasing=TRUE)[NumSitesGoal3]
 fctSuitabilitySolutionBudget3 <- fctSuitability3
-values(fctSuitabilitySolutionBudget3) <- 0
+fctSuitabilitySolutionBudget3[fctSuitabilitySolutionBudget3] <- 0
 fctSuitabilitySolutionBudget3[Which(fctSuitability3 > minValues, cells=TRUE)] <- 1 
 overage <-  NumSitesGoal3 - cellStats(fctSuitabilitySolutionBudget3, sum)
 fctSuitabilitySolutionBudget3[sample(Which(fctSuitability3 == minValues, cells=TRUE), overage)] <- 1
-
+#
 fctSuitability4 <- stackApply(Suitability4, nlayers(Suitability4), k)
 minValues <- sort(values(fctSuitability4), decreasing=TRUE)[NumSitesGoal4]
 fctSuitabilitySolutionBudget4 <- fctSuitability4
-values(fctSuitabilitySolutionBudget4) <- 0
+fctSuitabilitySolutionBudget4[fctSuitabilitySolutionBudget4] <- 0
 fctSuitabilitySolutionBudget4[Which(fctSuitability4 > minValues, cells=TRUE)] <- 1 
 overage <-  NumSitesGoal4 - cellStats(fctSuitabilitySolutionBudget4, sum)
 fctSuitabilitySolutionBudget4[sample(Which(fctSuitability4 == minValues, cells=TRUE), overage)] <- 1
-
-# Final map, sum suit, Suitability ecoregions + protected Suitabilitys
-fctSuitabilitySol <- mosaic(fctSuitabilitySolutionBudget3, fctSuitabilitySolutionBudget4, fun="max", na.rm=TRUE) %>%
-                     mask(., naturalAreasBinaryFocal)
+# Final map
+fctSuitabilitySol <- mosaic(fctSuitabilitySolutionBudget3, fctSuitabilitySolutionBudget4, fun="max", na.rm=TRUE) 
 fctSuitabilitySolPA <- mosaic(fctSuitabilitySol, protectedAreasNA, fun="max", na.rm=TRUE)
 final <- stack(fctSuitabilitySol, fctSuitabilitySolPA)
 assign(paste0(k, "_FinalSuitability"), final)
@@ -302,22 +300,20 @@ rm(fctSuitability3, fctSuitability4, fctSuitabilitySol, fctSuitabilitySolPA, fin
 fctDensity3 <- stackApply(Density3, nlayers(Density3), k)
 minValues <- sort(values(fctDensity3), decreasing=TRUE)[NumSitesGoal3]
 fctDensitySolutionBudget3 <- fctDensity3
-values(fctDensitySolutionBudget3) <- 0
+fctDensitySolutionBudget3[fctDensitySolutionBudget3] <- 0
 fctDensitySolutionBudget3[Which(fctDensity3 > minValues, cells=TRUE)] <- 1 
 overage <-  NumSitesGoal3 - cellStats(fctDensitySolutionBudget3, sum)
 fctDensitySolutionBudget3[sample(Which(fctDensity3 == minValues, cells=TRUE), overage)] <- 1
-
+#
 fctDensity4 <- stackApply(Density4, nlayers(Density4), k)
 minValues <- sort(values(fctDensity4), decreasing=TRUE)[NumSitesGoal4]
 fctDensitySolutionBudget4 <- fctDensity4
-values(fctDensitySolutionBudget4) <- 0
+fctDensitySolutionBudget4[fctDensitySolutionBudget4] <- 0
 fctDensitySolutionBudget4[Which(fctDensity4 > minValues, cells=TRUE)] <- 1 
 overage <-  NumSitesGoal4 - cellStats(fctDensitySolutionBudget4, sum)
 fctDensitySolutionBudget4[sample(Which(fctDensity4 == minValues, cells=TRUE), overage)] <- 1
-
-# Final map, sum suit, Density ecoregions + protected Densitys
-fctDensitySol <- mosaic(fctDensitySolutionBudget3, fctDensitySolutionBudget4, fun="max", na.rm=TRUE) %>%
-                mask(., naturalAreasBinaryFocal)
+# Final map
+fctDensitySol <- mosaic(fctDensitySolutionBudget3, fctDensitySolutionBudget4, fun="max", na.rm=TRUE) 
 fctDensitySolPA <- mosaic(fctDensitySol, protectedAreasNA, fun="max", na.rm=TRUE)
 final <- stack(fctDensitySol, fctDensitySolPA)
 assign(paste0(k, "_FinalDensity"), final)
@@ -327,48 +323,43 @@ rm(fctDensity3, fctDensity4, fctDensitySol, fctDensitySolPA, final)
 fctArea3 <- stackApply(Area3, nlayers(Area3), k)
 minValues <- sort(values(fctArea3), decreasing=TRUE)[NumSitesGoal3]
 fctAreaSolutionBudget3 <- fctArea3
-values(fctAreaSolutionBudget3) <- 0
+fctAreaSolutionBudget3[fctAreaSolutionBudget3] <- 0
 fctAreaSolutionBudget3[Which(fctArea3 > minValues, cells=TRUE)] <- 1 
 overage <-  NumSitesGoal3 - cellStats(fctAreaSolutionBudget3, sum)
 fctAreaSolutionBudget3[sample(Which(fctArea3 == minValues, cells=TRUE), overage)] <- 1
-
+#
 fctArea4 <- stackApply(Area4, nlayers(Area4), k)
 minValues <- sort(values(fctArea4), decreasing=TRUE)[NumSitesGoal4]
 fctAreaSolutionBudget4 <- fctArea4
-values(fctAreaSolutionBudget4) <- 0
+fctAreaSolutionBudget4[fctAreaSolutionBudget4] <- 0
 fctAreaSolutionBudget4[Which(fctArea4 > minValues, cells=TRUE)] <- 1 
 overage <-  NumSitesGoal4 - cellStats(fctAreaSolutionBudget4, sum)
 fctAreaSolutionBudget4[sample(Which(fctArea4 == minValues, cells=TRUE), overage)] <- 1
-
-# Final map, sum suit, Area ecoregions + protected Areas
-fctAreaSol <- mosaic(fctAreaSolutionBudget3, fctAreaSolutionBudget4, fun="max", na.rm=TRUE) %>%
-              mask(., naturalAreasBinaryFocal)
+# Final maps
+fctAreaSol <- mosaic(fctAreaSolutionBudget3, fctAreaSolutionBudget4, fun="max", na.rm=TRUE)
 fctAreaSolPA <- mosaic(fctAreaSol, protectedAreasNA, fun="max", na.rm=TRUE)
 final <- stack(fctAreaSol, fctAreaSolPA)
 assign(paste0(k, "_FinalArea"), final)
 rm(fctArea3, fctArea4, fctAreaSol, fctAreaSolPA, final)
 
-
 ## All
 fctAll3 <- stackApply(All3, nlayers(All3), k)
 minValues <- sort(values(fctAll3), decreasing=TRUE)[NumSitesGoal3]
 fctAllSolutionBudget3 <- fctAll3
-values(fctAllSolutionBudget3) <- 0
+fctAllSolutionBudget3[fctAllSolutionBudget3] <- 0
 fctAllSolutionBudget3[Which(fctAll3 > minValues, cells=TRUE)] <- 1 
 overage <-  NumSitesGoal3 - cellStats(fctAllSolutionBudget3, sum)
 fctAllSolutionBudget3[sample(Which(fctAll3 == minValues, cells=TRUE), overage)] <- 1
-
+#
 fctAll4 <- stackApply(All4, nlayers(All4), k)
 minValues <- sort(values(fctAll4), decreasing=TRUE)[NumSitesGoal4]
 fctAllSolutionBudget4 <- fctAll4
-values(fctAllSolutionBudget4) <- 0
+fctAllSolutionBudget4[fctAllSolutionBudget4] <- 0
 fctAllSolutionBudget4[Which(fctAll4 > minValues, cells=TRUE)] <- 1 
 overage <-  NumSitesGoal4 - cellStats(fctAllSolutionBudget4, sum)
 fctAllSolutionBudget4[sample(Which(fctAll4 == minValues, cells=TRUE), overage)] <- 1
-
-# Final map, sum suit, all ecoregions + protected Alls
-fctAllSol <- mosaic(fctAllSolutionBudget3, fctAllSolutionBudget4, fun="max", na.rm=TRUE) %>%
-              mask(., naturalAreasBinaryFocal)
+# Final map
+fctAllSol <- mosaic(fctAllSolutionBudget3, fctAllSolutionBudget4, fun="max", na.rm=TRUE) 
 fctAllSolPA <- mosaic(fctAllSol, protectedAreasNA, fun="max", na.rm=TRUE)
 final <- stack(fctAllSol, fctAllSolPA)
 assign(paste0(k, "_FinalAll"), final)
@@ -378,68 +369,60 @@ rm(fctAll3, fctAll4, fctAllSol, fctAllSolPA, final)
 
 
 ## Scenario 2--------------------------------------------------------------------------------
-
-#SUM
+#Sum
 minValues <- sort(values(SumResDensity3), decreasing=TRUE)[NumSitesGoal3]
 sumResDensitySolutionBudget3 <- SumResDensity3
-values(sumResDensitySolutionBudget3) <- 0
+sumResDensitySolutionBudget3[sumResDensitySolutionBudget3] <- 0
 sumResDensitySolutionBudget3[Which(SumResDensity3 > minValues, cells=TRUE)] <- 1 
 overage <-  NumSitesGoal3 - cellStats(sumResDensitySolutionBudget3, sum)
 sumResDensitySolutionBudget3[sample(Which(SumResDensity3 == minValues, cells=TRUE), overage)] <- 1
 #
 minValues <- sort(values(SumResDensity4), decreasing=TRUE)[NumSitesGoal4]
 sumResDensitySolutionBudget4 <- SumResDensity4
-values(sumResDensitySolutionBudget4) <- 0
+sumResDensitySolutionBudget4[sumResDensitySolutionBudget4] <- 0
 sumResDensitySolutionBudget4[Which(SumResDensity4 > minValues, cells=TRUE)] <- 1 
 overage <-  NumSitesGoal4 - cellStats(sumResDensitySolutionBudget4, sum)
 sumResDensitySolutionBudget4[sample(Which(SumResDensity4 == minValues, cells=TRUE), overage)] <- 1
-
-# Final map,  ecoregions + protected Suitabilitys
-sumResDensitySol <- mosaic(sumResDensitySolutionBudget3, sumResDensitySolutionBudget4, fun="max", na.rm=TRUE) %>%
-  mask(., naturalAreasBinaryFocal)
+# Final map
+sumResDensitySol <- mosaic(sumResDensitySolutionBudget3, sumResDensitySolutionBudget4, fun="max", na.rm=TRUE) 
 sumResDensitySolPA <- mosaic(sumResDensitySol, protectedAreasNA, fun="max", na.rm=TRUE)
 sumResDensitySolAll <- stack(sumResDensitySol, sumResDensitySolPA)
 
-
 #Mean
 minValues <- sort(values(MeanResDensity3), decreasing=TRUE)[NumSitesGoal3]
-meanResDensitySolutionBudget3 <- MeanResDensity3
-values(meanResDensitySolutionBudget3) <- 0
+meanResDensitySolutionBudget3 <- SumResDensity3
+meanResDensitySolutionBudget3[meanResDensitySolutionBudget3] <- 0
 meanResDensitySolutionBudget3[Which(MeanResDensity3 > minValues, cells=TRUE)] <- 1 
 overage <-  NumSitesGoal3 - cellStats(meanResDensitySolutionBudget3, sum)
 meanResDensitySolutionBudget3[sample(Which(MeanResDensity3 == minValues, cells=TRUE), overage)] <- 1
 #
 minValues <- sort(values(MeanResDensity4), decreasing=TRUE)[NumSitesGoal4]
-meanResDensitySolutionBudget4 <- MeanResDensity4
-values(meanResDensitySolutionBudget4) <- 0
+meanResDensitySolutionBudget4 <- SumResDensity4
+meanResDensitySolutionBudget4[meanResDensitySolutionBudget4] <- 0
 meanResDensitySolutionBudget4[Which(MeanResDensity4 > minValues, cells=TRUE)] <- 1 
-overage <-  NumSitesGoal4 - cellStats(meanResDensitySolutionBudget4, sum)
+overage <-  NumSitesGoal3 - cellStats(meanResDensitySolutionBudget4, sum)
 meanResDensitySolutionBudget4[sample(Which(MeanResDensity4 == minValues, cells=TRUE), overage)] <- 1
-
-# Final map, sum suit, Suitability ecoregions + protected Suitabilitys
-meanResDensitySol <- mosaic(meanResDensitySolutionBudget3, meanResDensitySolutionBudget4, fun="max", na.rm=TRUE) %>%
-  mask(., naturalAreasBinaryFocal)
+# Final map
+meanResDensitySol <- mosaic(meanResDensitySolutionBudget3, meanResDensitySolutionBudget4, fun="max", na.rm=TRUE) 
 meanResDensitySolPA <- mosaic(meanResDensitySol, protectedAreasNA, fun="max", na.rm=TRUE)
 meanResDensitySolAll <- stack(meanResDensitySol, meanResDensitySolPA)
 
 #Max
 minValues <- sort(values(MaxResDensity3), decreasing=TRUE)[NumSitesGoal3]
 maxResDensitySolutionBudget3 <- MaxResDensity3
-values(maxResDensitySolutionBudget3) <- 0
+maxResDensitySolutionBudget3[maxResDensitySolutionBudget3] <- 0
 maxResDensitySolutionBudget3[Which(MaxResDensity3 > minValues, cells=TRUE)] <- 1 
 overage <-  NumSitesGoal3 - cellStats(maxResDensitySolutionBudget3, sum)
 maxResDensitySolutionBudget3[sample(Which(MaxResDensity3 == minValues, cells=TRUE), overage)] <- 1
 #
 minValues <- sort(values(MaxResDensity4), decreasing=TRUE)[NumSitesGoal4]
 maxResDensitySolutionBudget4 <- MaxResDensity4
-values(maxResDensitySolutionBudget4) <- 0
+maxResDensitySolutionBudget4[maxResDensitySolutionBudget4] <- 0
 maxResDensitySolutionBudget4[Which(MaxResDensity4 > minValues, cells=TRUE)] <- 1 
 overage <-  NumSitesGoal4 - cellStats(maxResDensitySolutionBudget4, sum)
 maxResDensitySolutionBudget4[sample(Which(MaxResDensity4 == minValues, cells=TRUE), overage)] <- 1
-#
-# Final map, sum suit, Suitability ecoregions + protected Suitabilitys
-maxResDensitySol <- mosaic(maxResDensitySolutionBudget3, maxResDensitySolutionBudget4, fun="max", na.rm=TRUE) %>%
-  mask(., naturalAreasBinaryFocal)
+# Final map
+maxResDensitySol <- mosaic(maxResDensitySolutionBudget3, maxResDensitySolutionBudget4, fun="max", na.rm=TRUE) 
 maxResDensitySolPA <- mosaic(maxResDensitySol, protectedAreasNA, fun="max", na.rm=TRUE)
 maxResDensitySolAll <- stack(maxResDensitySol, maxResDensitySolPA)
 
@@ -453,22 +436,18 @@ minShortSuitProb3 <- problem(costLayer3, Suitability3) %>% #input is the cost su
   add_relative_targets(0.5) %>%  # set high to avoid being a constraint??
   add_locked_in_constraints(protectedAreasNA3) %>% #force inclusion of protected areas
   add_binary_decisions() #inclusion vs no-inclusion	
-
 presolve_check(minShortSuitProb3) # < 30s
 minShortSuitSol3 <- solve(minShortSuitProb3)
 repSuit3 <- feature_representation(minShortSuitProb3, minShortSuitSol3)
 freq(minShortSuitSol3)[2, "count"]/c(freq(minShortSuitSol3)[1, "count"] + freq(minShortSuitSol3)[2, "count"])
-
   # zone 4
 minShortSuitProb4 <- problem(costLayer4, Suitability4) %>% #input is the cost surface + features 
   add_min_shortfall_objective(NumSitesGoal4) %>% #minimize cost surface
   add_relative_targets(0.5) %>%  # set high to avoid being a constraint??
   add_locked_in_constraints(protectedAreasNA4) %>% #force inclusion of protected areas
   add_binary_decisions() #inclusion vs no-inclusion	
-
 presolve_check(minShortSuitProb4) # < 30s
 minShortSuitSol4 <- solve(minShortSuitProb4)
-
   # Final map, sum suit, all ecoregions + protected areas
 minShortSuitSol <- merge(minShortSuitSol3, minShortSuitSol4)
 minShortSuitSolPA <- merge(minShortSuitSol, protectedAreasNA)
@@ -481,20 +460,16 @@ minShortdensityProb3 <- problem(costLayer3, Density3) %>% #input is the cost sur
   add_relative_targets(0.5) %>%  # set high to avoid being a constraint??
   add_locked_in_constraints(protectedAreasNA3) %>% #force inclusion of protected areas
   add_binary_decisions() #inclusion vs no-inclusion	
-
 presolve_check(minShortdensityProb3) # < 30s
 minShortdensitySol3 <- solve(minShortdensityProb3)
-
   # zone 4
 minShortdensityProb4 <- problem(costLayer4, Density4) %>% #input is the cost surface + features 
   add_min_shortfall_objective(NumSitesGoal4) %>% #minimize cost surface
   add_relative_targets(0.5) %>%  # set high to avoid being a constraint??
   add_locked_in_constraints(protectedAreasNA4) %>% #force inclusion of protected areas
   add_binary_decisions() #inclusion vs no-inclusion	
-
 presolve_check(minShortdensityProb4) # < 30s
 minShortdensitySol4 <- solve(minShortdensityProb4)
-
   # Final map, sum suit, all ecoregions + protected areas
 minShortDensitySol <- merge(minShortdensitySol3, minShortdensitySol4)
 minShortDensitySolPA <- merge(minShortDensitySol, protectedAreasNA)
@@ -507,20 +482,16 @@ minShortAreaProb3 <- problem(costLayer3, Area3) %>% #input is the cost surface +
   add_relative_targets(0.5) %>%  # set high to avoid being a constraint??
   add_locked_in_constraints(protectedAreasNA3) %>% #force inclusion of protected areas
   add_binary_decisions() #inclusion vs no-inclusion	
-
 presolve_check(minShortAreaProb3) # < 30s
 minShortAreaSol3 <- solve(minShortAreaProb3)
-
   # zone 4
 minShortAreaProb4 <- problem(costLayer4, Area4) %>% #input is the cost surface + features 
   add_min_shortfall_objective(NumSitesGoal4) %>% #minimize cost surface
   add_relative_targets(0.5) %>%  # set high to avoid being a constraint??
   add_locked_in_constraints(protectedAreasNA4) %>% #force inclusion of protected areas
   add_binary_decisions() #inclusion vs no-inclusion	
-
 presolve_check(minShortAreaProb4) # < 30s
 minShortAreaSol4 <- solve(minShortAreaProb4)
-
 # Final map, sum suit, all ecoregions + protected areas
 minShortAreaSol <- merge(minShortAreaSol3, minShortAreaSol4)
 minShortAreaSolPA <- merge(minShortAreaSol, protectedAreasNA)
@@ -536,7 +507,6 @@ minShortProb3 <- problem(costLayer3, All3) %>% #input is the cost surface + feat
   add_default_solver()
 presolve_check(minShortProb3)
 minShortSol3 <- solve(minShortProb3)
-
  # zone 4
 minShortProb4 <- problem(costLayer4, All4) %>% #input is the cost surface + features 
   add_min_shortfall_objective(NumSitesGoal4) %>% #minimize cost surface
@@ -546,14 +516,13 @@ minShortProb4 <- problem(costLayer4, All4) %>% #input is the cost surface + feat
   add_default_solver()
 presolve_check(minShortProb4)
 minShortSol4 <- solve(minShortProb4)
-
   # Final map, sum suit, all ecoregions + protected areas
 minShortAllSol <- merge(minShortSol3, minShortSol4)
 minShortAllSolPA <- merge(minShortAllSol, protectedAreasNA)
 minShort_FinalAll <- stack(minShortAllSol, minShortAllSolPA)
 
 
-## Scenario 4 -  using add_max_objective in prioritizer----------------------------------------------
+## Scenario 4 -  using add_max_utility objective in prioritizer----------------------------------------------
 
 ## Suitability
 # zone 3
@@ -561,19 +530,15 @@ maxUtilitySuitProb3 <- problem(costLayer3, Suitability3) %>% #input is the cost 
   add_max_utility_objective(NumSitesGoal3) %>% #minimize cost surface
   add_locked_in_constraints(protectedAreasNA3) %>% #force inclusion of protected areas
   add_binary_decisions() #inclusion vs no-inclusion	
-
 presolve_check(maxUtilitySuitProb3) # < 30s
 maxUtilitySuitSol3 <- solve(maxUtilitySuitProb3)
-
 # zone 4
 maxUtilitySuitProb4 <- problem(costLayer4, Suitability4) %>% #input is the cost surface + features 
   add_max_utility_objective(NumSitesGoal4) %>% #minimize cost surface
   add_locked_in_constraints(protectedAreasNA4) %>% #force inclusion of protected areas
   add_binary_decisions() #inclusion vs no-inclusion	
-
 presolve_check(maxUtilitySuitProb4) # < 30s
 maxUtilitySuitSol4 <- solve(maxUtilitySuitProb4)
-
 # Final map, sum suit, all ecoregions + protected areas
 maxUtilitySuitSol <- merge(maxUtilitySuitSol3, maxUtilitySuitSol4)
 maxUtilitySuitSolPA <- merge(maxUtilitySuitSol, protectedAreasNA)
@@ -585,19 +550,15 @@ maxUtilitydensityProb3 <- problem(costLayer3, Density3) %>% #input is the cost s
   add_max_utility_objective(NumSitesGoal3) %>% #minimize cost surface
   add_locked_in_constraints(protectedAreasNA3) %>% #force inclusion of protected areas
   add_binary_decisions() #inclusion vs no-inclusion	
-
 presolve_check(maxUtilitydensityProb3) # < 30s
 maxUtilitydensitySol3 <- solve(maxUtilitydensityProb3)
-
 # zone 4
 maxUtilitydensityProb4 <- problem(costLayer4, Density4) %>% #input is the cost surface + features 
   add_max_utility_objective(NumSitesGoal4) %>% #minimize cost surface
   add_locked_in_constraints(protectedAreasNA4) %>% #force inclusion of protected areas
   add_binary_decisions() #inclusion vs no-inclusion	
-
 presolve_check(maxUtilitydensityProb4) # < 30s
 maxUtilitydensitySol4 <- solve(maxUtilitydensityProb4)
-
 # Final map, sum suit, all ecoregions + protected areas
 maxUtilityDensitySol <- merge(maxUtilitydensitySol3, maxUtilitydensitySol4)
 maxUtilityDensitySolPA <- merge(maxUtilityDensitySol, protectedAreasNA)
@@ -609,19 +570,15 @@ maxUtilityAreaProb3 <- problem(costLayer3, Area3) %>% #input is the cost surface
   add_max_utility_objective(NumSitesGoal3) %>% #minimize cost surface
   add_locked_in_constraints(protectedAreasNA3) %>% #force inclusion of protected areas
   add_binary_decisions() #inclusion vs no-inclusion	
-
 presolve_check(maxUtilityAreaProb3) # < 30s
 maxUtilityAreaSol3 <- solve(maxUtilityAreaProb3)
-
 # zone 4
 maxUtilityAreaProb4 <- problem(costLayer4, Area4) %>% #input is the cost surface + features 
   add_max_utility_objective(NumSitesGoal4) %>% #minimize cost surface
   add_locked_in_constraints(protectedAreasNA4) %>% #force inclusion of protected areas
   add_binary_decisions() #inclusion vs no-inclusion	
-
 presolve_check(maxUtilityAreaProb4) # < 30s
 maxUtilityAreaSol4 <- solve(maxUtilityAreaProb4)
-
 # Final map, sum suit, all ecoregions + protected areas
 maxUtilityAreaSol <- merge(maxUtilityAreaSol3, maxUtilityAreaSol4)
 maxUtilityAreaSolPA <- merge(maxUtilityAreaSol, protectedAreasNA)
@@ -636,7 +593,6 @@ maxUtilityProb3 <- problem(costLayer3, All3) %>% #input is the cost surface + fe
   add_default_solver()
 presolve_check(maxUtilityProb3)
 maxUtilitySol3 <- solve(maxUtilityProb3)
-
 # zone 4
 maxUtilityProb4 <- problem(costLayer4, All4) %>% #input is the cost surface + features 
   add_max_utility_objective(NumSitesGoal4) %>% #minimize cost surface
@@ -645,19 +601,17 @@ maxUtilityProb4 <- problem(costLayer4, All4) %>% #input is the cost surface + fe
   add_default_solver()
 presolve_check(maxUtilityProb4)
 maxUtilitySol4 <- solve(maxUtilityProb4)
-
 # Final map, sum suit, all ecoregions + protected areas
 maxUtilityAllSol <- merge(maxUtilitySol3, maxUtilitySol4)
 maxUtilityAllSolPA <- merge(maxUtilityAllSol, protectedAreasNA)
 maxUtility_FinalAll <- stack(maxUtilityAllSol, maxUtilityAllSolPA)
 
 
-
 ## Combine and summarize output files --------------------------------------------------------------------
 
 numModels <- 23
 
-# Raster stack all solns incl PA
+  # Raster stack all solns incl PA
 outputAll <- stack(sum_FinalAll[[1]],
                    sum_FinalSuitability[[1]], 
                    sum_FinalDensity[[1]], 
@@ -706,122 +660,9 @@ mapNames <- c("SumAll",
   "MUDensity",
   "MUArea")
 names(outputAll) <- mapNames
+outputAll <- mask(outputAll, Suitability[[1]])
 
-
-## Calculate  representation
-
-  # Matrix in which to save representation values, col=models, rows=features
-allModelRep <- matrix(NA, nrow=(length(specieslist) * 3 + 1), ncol=numModels)
-colnames(allModelRep) <- names(outputAll)[1:numModels]
-rownames(allModelRep) <- c("Size", paste(rep(specieslist, each=3), c("Suit", "Density", "Area"), sep="_"))
-
-  # Per model output, extract total amount of each feature included in solution
-
-for(m in 1:numModels){
-  
-  modelSol <- outputAll[[m]]
-  allModelRep[1, m] <- freq(modelSol)[2, "count"]
-  
-  for(l in 1:length(specieslist)){
-        sp <- specieslist[l]
-    #Suitability
-  coverage <- overlay(x=modelSol, y=Suitability[[l]], fun=function(x, y){(x * y)})
-  suitcover <- cellStats(coverage, "sum", na.rm=TRUE)/cellStats(Suitability[[l]], "sum", na.rm=TRUE)
-    # Density
-  coverage <- overlay(x=modelSol, y=Density[[l]], fun=function(x, y){(x * y)})
-  densecover <- cellStats(coverage, "sum", na.rm=TRUE)/cellStats(Density[[l]], "sum", na.rm=TRUE)
-    #Area
-  coverage <- overlay(x=modelSol, y=Area[[l]], fun=function(x, y){(x * y)})
-  areacover <- cellStats(coverage, "sum", na.rm=TRUE)/cellStats(Area[[l]], "sum", na.rm=TRUE)
-  
-  allModelRep[((l*3)-1):((l*3)+ 1), m] <- c(suitcover, densecover, areacover)
-         }
-  }
-
-#barplot(allModelRep[1, ], cex.names=0.75, angle=30, beside=TRUE) #Confirm solutions are the same size
-barplot(allModelRep[-1, ], cex.names=0.75, angle=30, beside=TRUE)
-
-repAll <- allModelRep[-1, c("SumAll", "MaxAll", "MeanAll", "MSAll", "MUAll")]
-
-
-suitAll <- seq(from=1, to=nrow(repAll), by=3)
-densAll <- seq(from=2, to=nrow(repAll), by=3)
-areaAll <- seq(from=3, to=nrow(repAll), by=3)
-
-colours <- c("lightsalmon",  "lightsalmon1", "lightsalmon2", "lightsalmon3", "lightsalmon4",
-             "indianred1", "indianred2", "indianred",  "indianred3", "indianred4", 
-             "mediumpurple ", "mediumpurple1", "mediumpurple2",  "mediumpurple3")
-
-# Plot  models w representation of all features
-barplot((repAll[suitAll, ]), 
-        beside=TRUE, 
-        names.arg= c("Sum All", "Max All", "Mean All", "Min Shortfall", "Max Utility"),
-        col = colours,
-        ylim=c(0, 0.7), 
-        xlab="Model approach", 
-        ylab="% Representation", 
-        main="Habitat suitability")
-legend("topright", 
-       legend=specieslist, 
-       fill=colours,
-       cex=0.75)
-
-barplot((repAll[densAll, ]), 
-        beside=TRUE, 
-        names.arg= c("Sum All", "Max All", "Mean All", "Min Shortfall", "Max Utility"),
-        col = colours,
-        ylim=c(0, 0.7), 
-        xlab="Model approach", 
-        ylab="% Representation", 
-        main="Current density")
-legend("topright", 
-       legend=specieslist, 
-       fill=colours, 
-       cex=0.75)
-
-barplot((repAll[areaAll, ]), 
-        beside=TRUE, 
-        names.arg= c("Sum All", "Max All", "Mean All", "Min Shortfall", "Max Utility"),
-        col = colours,
-        ylim=c(0, 0.7), 
-        xlab="Model approach", 
-        ylab="% Representation", 
-        main="Habitat area")
-legend("topright", 
-       legend=specieslist, 
-       fill=colours,
-       cex=0.75)
-
-
-## Calculate raster correlations
-
-set.seed(10)
-#plot all model correlations
-subSamp <- sampleRandom(outputAll, size= ncell(outputAll[[1]]) * 0.5)
-cors <- cor(subSamp)
-corrplot(cors, "ellipse", "upper", tl.cex=0.65, diag=FALSE)
-
-#complete models only
-corsAll <- cor(sampleRandom(subset(outputAll, c(1,5,9,16,20)), size= ncell(outputAll[[1]]) * 0.5 ))
-corrplot.mixed(corsAll, upper="ellipse", lower="number", tl.srt = 0, lower.col="black", tl.cex=0.65, tl.pos="d", number.cex=0.75)
-
-# density only
-corsDensity <- cor(sampleRandom(subset(outputAll, c(3,7,11, 13,14,15,18,22)), size= ncell(outputAll[[1]]) * 0.5 ))
-
-dev.new()
-corrplot.mixed(corsDensity, upper="ellipse", lower="number", lower.col="black", tl.pos="d", tl.cex=0.65)
-
-
-
-# jaccard
-jacs <- cross_jaccard(outputAll, thresholds = 0.05)
-jacsAll <- cross_jaccard(subset(outputAll, c(1,5,9,13,17)), thresholds = 0.05)
-corrplot(as.matrix(jacsAll$`0.05`), "ellipse", type="upper", diag=FALSE, is.corr=FALSE)
-
-
-
-
-## Collect layers with PA added
+  # Collect layers with PA added
 outputAllPA <-  stack(sum_FinalAll[[2]],
                       sum_FinalSuitability[[2]], 
                       sum_FinalDensity[[2]], 
@@ -870,12 +711,28 @@ mapNamesPA <- paste0(c("SumAll",
                        "MUDensity",
                        "MUArea"), "_PA")
 names(outputAllPA) <- mapNamesPA
+outputAllPA <- mask(outputAllPA, Suitability[[1]])
 
 
 
 ## Export solution rasters ----------------------------------------------------------------------
 
 
+  # Output intermediate rasters
+writeRaster(Suitability, filename=file.path("Results", "Suitability.tif"), 
+            format="raster", 
+            overwrite=TRUE)
+writeRaster(Density, filename=file.path("Results", "Density.tif"), 
+            format="raster", 
+            overwrite=TRUE) 
+writeRaster(Area, filename=file.path("Results", "Area.tif"), 
+            format="raster", 
+            overwrite=TRUE)
+writeRaster(All, filename=file.path("Results", "All.tif"), 
+            format="raster", 
+            overwrite=TRUE)
+
+  # output results maps
 writeRaster(outputAll, 
             filename=file.path(outDir, 
                                paste0(names(outputAll), "_prioritizationMap.tif")), 
@@ -884,6 +741,8 @@ writeRaster(outputAll,
 
 writeRaster(outputAllPA, 
             filename=file.path(outDir, 
-                               paste0(names(outputAllPA), "_prioritizationMap.tif")), 
+                               paste0(names(outputAll), "_prioritizationMap.tif")), 
             bylayer=TRUE,
             overwrite=TRUE)
+
+## End script ---------------------------------------
