@@ -74,8 +74,8 @@ names(outputAll) <- mapNames
 
 
 ## Analysis of solution maps ----------------------------------------------------------------
-
-## Calculate  representation
+numModels = 23
+## Calculate  repnumModels esentation
 
 # Matrix in which to save representation values, col=models, rows=features
 allModelRep <- matrix(NA, nrow=(length(specieslist) * 3 + 1), ncol=numModels)
