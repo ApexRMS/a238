@@ -1,6 +1,7 @@
 #####################################################################
 # a238 ECCC Multi-species connectivity analysis            
-# Combine resistance maps            
+# Combine resistance maps by mean, max, or sum for calculation of 
+#  current density maps
 #                                                                   
 # Inputs (per species):                                                           
 #    - Resistance maps                       
