@@ -3,33 +3,46 @@ library(raster)
 library(sf)
 
 primaryStratum <- 
-  raster("libraries/BTSL_stconnect.ssim/BTSL_stconnect.ssim.input/Scenario-127/stsim_InitialConditionsSpatial/PrimaryStratum_NAchanged.tif")
+  raster("Data/stsim/PrimaryStratum_NAchanged.tif")
 secondaryStratum <- 
-  raster("libraries/BTSL_stconnect.ssim/BTSL_stconnect.ssim.input/Scenario-127/stsim_InitialConditionsSpatial/SecondaryStratum_NAchanged.tif")
+  raster("Data/stsim/SecondaryStratum_NAchanged.tif")
 tertiaryStratum <- 
-  raster("libraries/BTSL_stconnect.ssim/BTSL_stconnect.ssim.input/Scenario-127/stsim_InitialConditionsSpatial/TertiaryStratum_NAchanged.tif")
+  raster("Data/stsim/TertiaryStratum_NAchanged.tif")
 protectedAreas <- 
-  raster("libraries/BTSL_stconnect.ssim/BTSL_stconnect.ssim.input/Scenario-148/stsim_TransitionSpatialMultiplier/protectedAreas_FocalAreaBuffer.tif")
+  raster("Data/stsim/protectedAreas_FocalAreaBuffer.tif")
 
 studyExtent <- raster("Data/Processed/LULC_FocalAreaBuffer.tif")
 onlyMonteregie <- st_transform(st_read("Data/Processed/regioMonteregie.shp"),
                                crs(studyExtent))
 
-primaryStratumCropped <- 
-  extend(mask(crop(primaryStratum, studyExtent), onlyMonteregie), studyExtent)
-primaryStratumCropped[is.na(primaryStratumCropped)] <- 0
-primaryStratumCropped[is.na(studyExtent)] <- NA
 secondaryStratumCropped<- 
   extend(mask(crop(secondaryStratum, studyExtent, snap="out"), onlyMonteregie), studyExtent)
 secondaryStratumCropped[is.na(secondaryStratumCropped)] <- 0
 secondaryStratumCropped[is.na(studyExtent)] <- NA
+
+goodValues <- 
+  as.numeric(names(which(table(values(secondaryStratumCropped))>1000)))
+
+secondaryStratumCropped[!(secondaryStratumCropped %in% goodValues)] <- 0
+
+secondaryStratumCroppedClean <- secondaryStratumCropped
+secondaryStratumCroppedClean[secondaryStratumCroppedClean!=0] <- 1
+secondaryStratumCroppedClean[secondaryStratumCroppedClean==0] <- NA
+# Monteregie_shp <- st_as_sf(rasterToPolygons(secondaryStratumCroppedClean, 
+#                                             dissolve = TRUE))
+
+primaryStratumCropped <- 
+  extend(mask(crop(primaryStratum, studyExtent), onlyMonteregie), secondaryStratumCroppedClean)
+primaryStratumCropped[is.na(secondaryStratumCroppedClean)] <- 0
+primaryStratumCropped[is.na(studyExtent)] <- NA
+
 tertiaryStratumCropped<- 
-  extend(mask(crop(tertiaryStratum, studyExtent), onlyMonteregie), studyExtent)
-tertiaryStratumCropped[is.na(tertiaryStratumCropped)] <- 0
+  extend(mask(crop(tertiaryStratum, studyExtent), onlyMonteregie), secondaryStratumCroppedClean)
+tertiaryStratumCropped[is.na(secondaryStratumCroppedClean)] <- 0
 tertiaryStratumCropped[is.na(studyExtent)] <- NA
 protectedAreasCropped <- 
-  extend(mask(crop(protectedAreas, studyExtent), onlyMonteregie), studyExtent)
-protectedAreasCropped[is.na(protectedAreasCropped)] <- 0
+  extend(mask(crop(protectedAreas, studyExtent), onlyMonteregie), secondaryStratumCroppedClean)
+protectedAreasCropped[is.na(secondaryStratumCroppedClean)] <- 0
 protectedAreasCropped[is.na(studyExtent)] <- NA
 
 writeRaster(primaryStratumCropped, 
@@ -57,8 +70,6 @@ sceTar <- scenario(mylib, 7)
 myproj <- project(mylib, "Definitions")
 
 secondaryStratumDatasheet <- datasheet(myproj, "stsim_SecondaryStratum")
-goodValues <- 
-  as.numeric(names(which(table(values(secondaryStratumCropped))>1000)))
 secondaryStratumDatasheetFiltered <- secondaryStratumDatasheet %>% 
   dplyr::filter(ID %in% goodValues)
 
