@@ -18,18 +18,18 @@ onlyMonteregie <- st_transform(st_read("Data/Processed/regioMonteregie.shp"),
 secondaryStratumCropped<- 
   extend(mask(crop(secondaryStratum, studyExtent, snap="out"), onlyMonteregie), studyExtent)
 secondaryStratumCropped[is.na(secondaryStratumCropped)] <- 0
-secondaryStratumCropped[is.na(studyExtent)] <- NA
-
 goodValues <- 
   as.numeric(names(which(table(values(secondaryStratumCropped))>1000)))
-
 secondaryStratumCropped[!(secondaryStratumCropped %in% goodValues)] <- 0
+secondaryStratumCropped[is.na(studyExtent)] <- NA
 
 secondaryStratumCroppedClean <- secondaryStratumCropped
 secondaryStratumCroppedClean[secondaryStratumCroppedClean!=0] <- 1
 secondaryStratumCroppedClean[secondaryStratumCroppedClean==0] <- NA
 # Monteregie_shp <- st_as_sf(rasterToPolygons(secondaryStratumCroppedClean, 
 #                                             dissolve = TRUE))
+
+writeRaster(secondaryStratumCroppedClean, "Data/Processed/Monteregie_mask.tif")
 
 primaryStratumCropped <- 
   extend(mask(crop(primaryStratum, studyExtent), onlyMonteregie), secondaryStratumCroppedClean)
