@@ -47,6 +47,7 @@ LULC <- raster(file.path(rawDataDir, "BTSL_extent/InitialStateClass_AgeMean.tif"
 # Conf Y, Med, Old (531, 532, 533)
 # Urban (400)
 # Roads (410)
+# Wetlands (800, 810)
 
 ## Reproject shapefile to lcc
 # Create spatial polygon from points

@@ -37,10 +37,6 @@ suitabilityThreshold <- 60
 
 ## Load files and inputs ---------------------------------------------------------------
 
-# Landuse/landsclass map
-LULC <- raster(file.path(procDataDir, "LULC_FocalAreaBuffer.tif"))
-naturalAreas <- raster(file.path(procDataDir, "LULCnatural_FocalAreaBuffer.tif"))
-
 # Species characteristics
 minPatchSize <- read.csv(file.path(
   paste0(rawDataDir, "/Focal Species"), 
@@ -53,13 +49,25 @@ species <- read.csv(file.path(
   paste0(rawDataDir, "/Focal Species"), 
   "Species.csv"),
   stringsAsFactor = FALSE)
+specieslist <- species$Code
+specieslist <- specieslist[specieslist != ""]
+
+## for loop to run separately for buffered and unbuffered file versions
+
+type <- c("Unbuffered", "Buffer")
+ for(k in type){
+
+	j <- ifelse(k == "Unbuffered", ".tif", "Buffer.tif")
+
+# Landuse/landclass map
+LULC <- raster(file.path(procDataDir, paste0("LULC_FocalArea", j)))
+naturalAreas <- raster(file.path(procDataDir, paste0("LULCnatural_FocalArea", j)))
 
 
 ## Generate habitat suitability files for all species --------------------------
 
 # for loop over all species in species list
-specieslist <- species$Code
-specieslist <- specieslist[specieslist != ""]
+
 
 for(i in specieslist){
   
@@ -122,39 +130,43 @@ for(i in specieslist){
   # All LULC area
   writeRaster(suitabilityRaster, 
               file.path(procDataDir, 
-                        paste0(species, "_HabitatSuitabilityBuffer.tif")), 
+                        paste0(species, paste0("_HabitatSuitability", j))), 
               overwrite=TRUE)
   writeRaster(habitatRaster, 
               file.path(procDataDir, 
-                        paste0(species, "_HabitatPatchBuffer.tif")), 
+                        paste0(species, paste0("_HabitatPatch", j))), 
               overwrite=TRUE)
   writeRaster(habitatArea, 
               file.path(procDataDir, 
-                        paste0(species, "_HabitatAreaBuffer.tif")), 
+                        paste0(species, paste0("_HabitatArea", j))), 
               overwrite=TRUE)
   writeRaster(habitatRasterCont, 
               file.path(procDataDir, 
-                        paste0(species, "_HabitatIDBuffer.tif")), 
+                        paste0(species, paste0("_HabitatID", j))), 
               overwrite=TRUE)
   
   # Focal area
   writeRaster(suitabilityRasterFocal, 
               file.path(procDataDir, 
-                        paste0(species, "_HabitatSuitability_FocalAreaBuffer.tif")), 
+                        paste0(species, paste0("_HabitatSuitability_FocalArea", j))), 
               overwrite=TRUE)
   writeRaster(habitatRasterFocal, 
               file.path(procDataDir, 
-                        paste0(species, "_HabitatPatch_FocalAreaBuffer.tif")), 
+                        paste0(species, paste0("_HabitatPatch_FocalArea", j))), 
               overwrite=TRUE)
   writeRaster(habitatAreaFocal, 
               file.path(procDataDir, 
-                        paste0(species, "_HabitatArea_FocalAreaBuffer.tif")), 
+                        paste0(species, paste0("_HabitatArea_FocalArea", j))), 
               overwrite=TRUE)
   writeRaster(habitatRasterContFocal, 
               file.path(procDataDir, 
-                        paste0(species, "_HabitatID_FocalAreaBuffer.tif")), 
+                        paste0(species, paste0("_HabitatID_FocalArea", j))), 
               overwrite=TRUE)
   
-} # End loop
+		} # End species loop
+
+} # End type loop
+
+
 
 ## End script
