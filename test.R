@@ -80,10 +80,10 @@ ic2010 <- read_csv("Data/Processed/tabular/focal_90m.csv",
                      X2 = col_double(),
                      X3 = col_double()
                    )
-) %>% rename('FromStateClass' = X1, 'StratumID' = X2, 'TotalAmount' = X3) %>% 
-  filter(!is.na(FromStateClass)) %>% 
-  filter(StratumID != 0) %>% 
-  mutate(Timestep = 2010)
+) %>% rename('StateClassID' = X1, 'ID' = X2, 'TotalAmount' = X3) %>% 
+  filter(!is.na(StateClassID)) %>% 
+  filter(ID != 0) %>% 
+  mutate(Timestep = 2000)
 
 # Transition Multipliers ----------------------------------------------------------------------
 cellAreaSqKm <- (res*res)/1000000 # Area of an individual cell, in km2
@@ -95,41 +95,27 @@ myproj <- project(mylib, "Definitions")
 
 targets <- datasheet(sceTar, "stsim_TransitionTarget")
 secondaryStratumDatasheet <- datasheet(myproj, "stsim_SecondaryStratum")
+StateClassDatasheet <- datasheet(myproj, "stsim_StateClass") %>% 
+  dplyr::select(Name, ID) %>% 
+  rename(ID_SC = ID)
 
 # Combine all years
 stateClassTotalAmount <- bind_rows(ic2010) %>%
-  select(Timestep, StratumID, FromStateClass, TotalAmount)
+  left_join(StateClassDatasheet, by = c("StateClassID"="ID_SC")) %>% 
+  mutate(FromStateClass = gsub(":All*","", Name)) %>% 
+  rename(StateClass_Name=Name) %>% 
+  left_join(secondaryStratumDatasheet, by = "ID") %>% 
+  dplyr::select(Timestep, 'SecondaryStratumID'=Name, FromStateClass, TotalAmount) %>% 
+  mutate(TotalAmount = TotalAmount/10000)
 
 myDatasheet <- targets %>%
   mutate(FromStateClass = gsub("->.*","",TransitionGroupID),
          TargetAmount = ifelse(Amount < cellAreaSqKm, 0, Amount)) %>%
-  dpyr::select(-Amount) %>%
-  left_join(stateClassTotalAmount, by=c("Timestep", "StratumID", "FromStateClass")) %>%
+  dplyr::select(-Amount) %>%
+  left_join(stateClassTotalAmount, by=c("Timestep", "SecondaryStratumID", "FromStateClass")) %>%
+  drop_na() %>% 
   mutate(MultiplierAmount = ifelse(is.na(TotalAmount), 0, TargetAmount/TotalAmount)) %>%
-  arrange(TargetAmount) %>%
-  select(Timestep, StratumID, TransitionGroupID, "Amount"=MultiplierAmount)
+  arrange(SecondaryStratumID) %>%
+  dplyr::select(Timestep, SecondaryStratumID, TransitionGroupID, "Amount"=MultiplierAmount)
 
 datasheetName <- "stsim_TransitionMultiplierValue"
-write_csv(myDatasheet, file.path(subscenariosDir, datasheetName, paste0(datasheetName, "_er", ecoregion, '_', res, "m.csv")))
-
-
-# Export maps ------------------------------------------------------------------------
-# Save Tidal CCAP simple 
-# Max compression options
-rastersToSave <- c("Tidal_CCAP1996_simple",
-                   "Tidal_CCAP2001_simple",
-                   "Tidal_CCAP2006_simple",
-                   "Tidal_CCAP2010_simple",
-                   "Tidal_CCAP2016_simple")
-
-for(ras in rastersToSave){
-  outfile <- file.path(resultsDir, "Spatial", paste0(ras, "_", res, "m.tif"))
-  execGRASS('r.out.gdal', 
-            input = ras, 
-            output = outfile, 
-            type = 'Byte', 
-            flags = c('c', 'm', 'overwrite'),
-            createopt = c("COMPRESS=DEFLATE")) #, "NUM_THREADS=4", "ZLEVEL=9", "SPARSE_OK=YES"))
-}
-
-
