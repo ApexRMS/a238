@@ -5,3 +5,7 @@
 junk
 libraries
 outputs
+QGISStyles
+.Rprofile
+renv
+renv.lock
