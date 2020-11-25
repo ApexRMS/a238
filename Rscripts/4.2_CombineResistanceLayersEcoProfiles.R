@@ -57,7 +57,7 @@ for(i in specieslist){ # run for all species
   
   species <- i
   
-  resistance <- raster(file.path(procDataDir, paste0(species, "_Resistance.tif")))
+  resistance <- raster(file.path(procDataDir, paste0(species, "_Resistance_FocalAreaBuffer.tif")))
   nam2 <- paste0(species, "_resistance")
   assign(nam2, resistance)	
   
@@ -125,28 +125,28 @@ combinedResistanceOmnivores <- stackApply(omnivoreStack, nlayers(omnivoreStack),
 
 ## Scenario 1 - taxonomy
 writeRaster(combinedResistanceBird, 
-            filename=file.path(procDataDir,  "combinedResistanceBird.tif"), 
+            filename=file.path(procDataDir,  "combined_Resistance_Bird_FocalAreaBuffer.tif"), 
             overwrite=TRUE)
 writeRaster(combinedResistanceMammal, 
-            filename=file.path(procDataDir,  "combinedResistanceMammal.tif"), 
+            filename=file.path(procDataDir,  "combined_Resistance_Mammal_FocalAreaBuffer.tif"), 
             overwrite=TRUE)
 writeRaster(combinedResistanceAmphibian, 
-            filename=file.path(procDataDir,  "combinedResistanceAmphibian.tif"), 
+            filename=file.path(procDataDir,  "combined_Resistance_Amphibian_FocalAreaBuffer.tif"), 
             overwrite=TRUE)
 
 
 ## Scenario 2 - diet
 writeRaster(combinedResistanceCarnivores, 
-            filename=file.path(procDataDir,  "combinedResistanceCarnivores.tif"), 
+            filename=file.path(procDataDir,  "combined_Resistance_Carnivores_FocalAreaBuffer.tif"), 
             overwrite=TRUE)
 writeRaster(combinedResistanceHerbivores, 
-            filename=file.path(procDataDir,  "combinedResistanceHerbivores.tif"), 
+            filename=file.path(procDataDir,  "combined_Resistance_Herbivores_FocalAreaBuffer.tif"), 
             overwrite=TRUE)
 writeRaster(combinedResistanceInsectivores, 
-            filename=file.path(procDataDir,  "combinedResistanceInsectivores.tif"), 
+            filename=file.path(procDataDir,  "combined_Resistance_Insectivores_FocalAreaBuffer.tif"), 
             overwrite=TRUE)
 writeRaster(combinedResistanceOmnivores, 
-            filename=file.path(procDataDir,  "combinedResistanceOmnivores.tif"), 
+            filename=file.path(procDataDir,  "combined_Resistance_Omnivores_FocalAreaBuffer.tif"), 
             overwrite=TRUE)
 
 # End script
