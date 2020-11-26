@@ -79,10 +79,11 @@ naturalAreasFocal <- raster(file.path(procDataDir, "LULCnatural_FocalArea.tif"))
 naturalAreasBinaryFocal <- raster(file.path(procDataDir, "LULCbinary_FocalArea.tif"))
 
 # Protected areas
-protectedAreas <- raster(file.path(procDataDir, "protectedAreasNatural_FocalArea.tif"))
+protectedAreas <- raster(file.path(procDataDir, "protectedAreasTerrestrial_FocalArea.tif")) %>%
+                  crop(., naturalAreasFocal)
 #values so 0 = protected, 1 = unprotected, reflecting cost of inclusion in network
-protectedAreasNA <-  reclassify(protectedAreas, rcl=matrix(c(0, 1, 1, 0), ncol=2, byrow=T)) %>%
-  reclassify(., rcl=matrix(c(0, NA, 1, 1), ncol=2, byrow=T))
+#protectedAreasNA <-  reclassify(protectedAreas, rcl=matrix(c(0, 1, 1, 0), ncol=2, byrow=T)) %>%
+#  reclassify(., rcl=matrix(c(0, NA, 1, 1), ncol=2, byrow=T))
 
 # Ecoregions 
 ecoregions <- raster(file.path(rawDataDir, "StudyArea/PrimaryStratum.tif")) %>%
@@ -100,9 +101,9 @@ naturalAreasBinaryFocal1 <-  mask(naturalAreasBinaryFocal, zone1)
 naturalAreasBinaryFocal3 <-  mask(naturalAreasBinaryFocal, zone3)
 naturalAreasBinaryFocal4 <-  mask(naturalAreasBinaryFocal, zone4)
 
-protectedAreasNA1 <-  mask(protectedAreasNA, zone1)
-protectedAreasNA3 <-  mask(protectedAreasNA, zone3)
-protectedAreasNA4 <-  mask(protectedAreasNA, zone4)
+protectedAreasNA1 <-  mask(protectedAreas, zone1)
+protectedAreasNA3 <-  mask(protectedAreas, zone3)
+protectedAreasNA4 <-  mask(protectedAreas, zone4)
 
 
 ## 3) Load and generate feature files ---------------------------------------------------------
@@ -174,7 +175,7 @@ for(j in ecozones){ # multispecies inputs
   
 ## Process all remaining non-species data  
   
-## 3b) For generic resistance layer-----------------------------------------------------------------
+## For generic resistance layer-----------------------------------------------------------------
 genericRes <- raster(file.path(procDataDir, "CircuitscapeOutputs", paste0("Generic_Resistance_FocalAreaBuffer_out_cum_curmap.tif"))) %>%
     crop(., naturalAreasZ) %>%
     mask(., naturalAreasZ) %>%
@@ -187,7 +188,7 @@ namn3 <- paste0("genericRes", j)
 assign(namn3, genericRes)
   
   
-## 3c) For processed current density inputs----------------------------------------------------------
+## Summarize species resistance layers ----------------------------------------------------------
 SumResDensity <- raster(file.path(procDataDir, "CircuitscapeOutputs", "combined_Resistance_Sum_FocalAreaBuffer_out_cum_curmap.tif")) %>%
     crop(., naturalAreasZ) %>%
     mask(., naturalAreasZ) %>%
@@ -209,25 +210,12 @@ MeanResDensity <- raster(file.path(procDataDir, "CircuitscapeOutputs", "combined
     calc(., fun = function(x){ifelse(x <= 1e-6, 0, x)}) #for prioritizer bug
 nammm2 <- paste0("MeanResDensity", j)
 assign(nammm2, MeanResDensity)
-  
-MaxResDensity <- raster(file.path(procDataDir, "CircuitscapeOutputs", "combined_Resistance_Max_FocalAreaBuffer_out_cum_curmap.tif")) %>%
-    crop(., naturalAreasZ) %>%
-    mask(., naturalAreasZ) %>%
-    mask(., protectedAreasZ, inv=TRUE) %>% #Omit existing protected areas from analyses
-    calc(., fun = log) %>% #density has log normal distbn
-    scale(.) %>%
-    calc(., fun = rescaleR) %>%
-    calc(., fun = function(x){ifelse(x <= 1e-6, 0, x)}) #for prioritizer bug
-nammm3 <- paste0("MaxResDensity", j)
-assign(nammm3, MaxResDensity)
-rm(SumResDensity, MeanResDensity, MaxResDensity)
-  
-## 3d) For ecoprofile current density inputs-----------------------------------------------------
 
-#!!!!!!!!!!!!! The inputs are currently fake for ecoprofiles - update with real files names
+  
+## Summarize ecoprofile resistances -----------------------------------------------------
 
   # Scenario 1
-ecoprofileBird <- raster(file.path(procDataDir, "CircuitscapeOutputs", "combined_Resistance_Sum_FocalAreaBuffer_out_cum_curmap.tif")) %>%
+ecoprofileBird <- raster(file.path(procDataDir, "CircuitscapeOutputs", "combined_Resistance_Bird_FocalAreaBuffer_out_cum_curmap.tif")) %>%
     crop(., naturalAreasZ) %>%
     mask(., naturalAreasZ) %>%
     mask(., protectedAreasZ, inv=TRUE) %>% #Omit existing protected areas from analyses
@@ -238,7 +226,7 @@ ecoprofileBird <- raster(file.path(procDataDir, "CircuitscapeOutputs", "combined
 nammm1 <- paste0("ecoprofileBird", j)
 assign(nammm1, ecoprofileBird)
   
-ecoprofileMammal <- raster(file.path(procDataDir, "CircuitscapeOutputs", "combined_Resistance_Mean_FocalAreaBuffer_out_cum_curmap.tif")) %>%
+ecoprofileMammal <- raster(file.path(procDataDir, "CircuitscapeOutputs", "combined_Resistance_Mammal_FocalAreaBuffer_out_cum_curmap.tif")) %>%
     crop(., naturalAreasZ) %>%
     mask(., naturalAreasZ) %>%
     mask(., protectedAreasZ, inv=TRUE) %>% #Omit existing protected areas from analyses
@@ -247,9 +235,9 @@ ecoprofileMammal <- raster(file.path(procDataDir, "CircuitscapeOutputs", "combin
     calc(., fun = rescaleR) %>%
     calc(., fun = function(x){ifelse(x <= 1e-6, 0, x)}) #for prioritizer bug
 nammm2 <- paste0("ecoprofileMammal", j)
-assign(nammm2, ecoprofileBird)
+assign(nammm2, ecoprofileMammal)
   
-ecoprofileAmphibian <- raster(file.path(procDataDir, "CircuitscapeOutputs", "combined_Resistance_Max_FocalAreaBuffer_out_cum_curmap.tif")) %>%
+ecoprofileAmphibian <- raster(file.path(procDataDir, "CircuitscapeOutputs", "combined_Resistance_Amphibian_FocalAreaBuffer_out_cum_curmap.tif")) %>%
     crop(., naturalAreasZ) %>%
     mask(., naturalAreasZ) %>%
     mask(., protectedAreasZ, inv=TRUE) %>% #Omit existing protected areas from analyses
@@ -261,7 +249,7 @@ nammm3 <- paste0("ecoprofileAmphibian", j)
 assign(nammm3, ecoprofileAmphibian)
   
   # Scenario2
-ecoprofileOmnivore <- raster(file.path(procDataDir, "CircuitscapeOutputs", "LEAM_Resistance_FocalAreaBuffer_out_cum_curmap.tif")) %>%
+ecoprofileOmnivore <- raster(file.path(procDataDir, "CircuitscapeOutputs", "combined_Resistance_Omnivores_FocalAreaBuffer_out_cum_curmap.tif")) %>%
     crop(., naturalAreasZ) %>%
     mask(., naturalAreasZ) %>%
     mask(., protectedAreasZ, inv=TRUE) %>% #Omit existing protected areas from analyses
@@ -272,7 +260,7 @@ ecoprofileOmnivore <- raster(file.path(procDataDir, "CircuitscapeOutputs", "LEAM
 nammm1 <- paste0("ecoprofileOmnivore", j)
 assign(nammm1, ecoprofileOmnivore)
   
-ecoprofileInsectivore <- raster(file.path(procDataDir, "CircuitscapeOutputs", "BUAM_Resistance_FocalAreaBuffer_out_cum_curmap.tif")) %>%
+ecoprofileInsectivore <- raster(file.path(procDataDir, "CircuitscapeOutputs", "combined_Resistance_Insectivores_FocalAreaBuffer_out_cum_curmap.tif")) %>%
     crop(., naturalAreasZ) %>%
     mask(., naturalAreasZ) %>%
     mask(., protectedAreasZ, inv=TRUE) %>% #Omit existing protected areas from analyses
@@ -283,7 +271,7 @@ ecoprofileInsectivore <- raster(file.path(procDataDir, "CircuitscapeOutputs", "B
 nammm1 <- paste0("ecoprofileInsectivore", j)
 assign(nammm1, ecoprofileInsectivore)
   
-ecoprofileCarnivore <- raster(file.path(procDataDir, "CircuitscapeOutputs", "SICA_Resistance_FocalAreaBuffer_out_cum_curmap.tif")) %>%
+ecoprofileCarnivore <- raster(file.path(procDataDir, "CircuitscapeOutputs", "combined_Resistance_Carnivores_FocalAreaBuffer_out_cum_curmap.tif")) %>%
     crop(., naturalAreasZ) %>%
     mask(., naturalAreasZ) %>%
     mask(., protectedAreasZ, inv=TRUE) %>% #Omit existing protected areas from analyses
@@ -294,7 +282,7 @@ ecoprofileCarnivore <- raster(file.path(procDataDir, "CircuitscapeOutputs", "SIC
 nammm1 <- paste0("ecoprofileCarnivore", j)
 assign(nammm1, ecoprofileCarnivore)
   
-ecoprofileHerbivore <- raster(file.path(procDataDir, "CircuitscapeOutputs", "STVA_Resistance_FocalAreaBuffer_out_cum_curmap.tif")) %>%
+ecoprofileHerbivore <- raster(file.path(procDataDir, "CircuitscapeOutputs", "combined_Resistance_Herbivores_FocalAreaBuffer_out_cum_curmap.tif")) %>%
     crop(., naturalAreasZ) %>%
     mask(., naturalAreasZ) %>%
     mask(., protectedAreasZ, inv=TRUE) %>% #Omit existing protected areas from analyses
@@ -350,10 +338,8 @@ SumResDensity <- mosaic(SumResDensity3, SumResDensity4, fun="max", na.rm=TRUE) %
   mosaic(., SumResDensity1, fun="max", na.rm=TRUE)
 MeanResDensity <- mosaic(MeanResDensity3, MeanResDensity4, fun="max", na.rm=TRUE) %>%
   mosaic(., MeanResDensity1, fun="max", na.rm=TRUE)
-MaxResDensity <- mosaic(MaxResDensity3, MaxResDensity4, fun="max", na.rm=TRUE) %>%
-  mosaic(., MaxResDensity1, fun="max", na.rm=TRUE)
-ResDensity <- stack(SumResDensity, MeanResDensity, MaxResDensity)
-names(ResDensity) <- c("SumResDensity", "MeanResDensity", "MaxResDensity")
+ResDensity <- stack(SumResDensity, MeanResDensity)
+names(ResDensity) <- c("SumResDensity", "MeanResDensity")
 
 # Current density calculated for ecoprofile resistances 
 # Scenario 1 taxonomy 
@@ -377,7 +363,7 @@ ecoprofileHerbivore <- mosaic(ecoprofileHerbivore3, ecoprofileHerbivore4, fun="m
 ResTrophic <- stack(ecoprofileOmnivore, ecoprofileInsectivore, ecoprofileCarnivore, ecoprofileHerbivore)
 names(ResTrophic) <- c("ecoprofileOmnivore", "ecoprofileInsectivore", "ecoprofileCarnivore", "ecoprofileHerbivore")
 
-# Species level features (to be summarized as sum, mean, or max)
+# Species level features (to be summarized as sum, mean)
 Suitability <- mosaic(Suitability3, Suitability4, fun="max", na.rm=TRUE) %>%
   mosaic(., Suitability1, fun="max", na.rm=TRUE)
 names(Suitability) <- specieslist
@@ -391,7 +377,7 @@ Density <- mosaic(Density3, Density4, fun="max", na.rm=TRUE)%>%
 names(Density) <- specieslist
 
 All <- mosaic(All3, All4, fun="max", na.rm=TRUE) %>%
-  mosaic(., All1, fun="max", na.rm=TRUE)
+      mosaic(., All1, fun="max", na.rm=TRUE)
 names(All) <- c(paste0(specieslist, "_habitatSuitability"), 
                 paste0(specieslist, "_habitatArea"),
                 paste0(specieslist, "_density"))
