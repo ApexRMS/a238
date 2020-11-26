@@ -188,3 +188,24 @@ corrplot(as.matrix(jacsAll$`0.05`), "ellipse", type="upper", diag=FALSE, is.corr
 
 
 ##
+mapNames <- c("genericResSol", 1
+              "FinalEcoprofileTaxon", 2
+              "FinalEcoprofileTrophic", 3
+              "FinalSumResDensity", 4
+              "FinalMeanResDensity", 5
+              "sum_FinalSuitability",6
+              "sum_FinalDensity",7
+              "sum_FinalArea",8
+              "sum_FinalAll",9
+              "mean_FinalSuitability",10
+              "mean_FinalDensity",11
+              "mean_FinalArea",12
+              "mean_FinalAll",13
+              "minShortSuitSol",14
+              "minShortDensitySol",15
+              "minShortAreaSol",16
+              "minShortAllSol",17
+              "maxUtilitySuitSol",18
+              "maxUtilityDensitySol",19
+              "maxUtilityAreaSol",20
+              "maxUtilityAllSol")21
