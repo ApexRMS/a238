@@ -1,13 +1,6 @@
 #### a238
 #### From a script by Chloé Debyser, Andy Kleinhesselink, Bronwyn Rayfield
 
-########################################################################
-# For each Stratum in a selected StratumMask, this code:               #
-# 1. Computes LULC frequency for all years                             #
-# 2. Produces transition targets of LULC change for all time periods   #
-# 3. Produces transition multipliers                                   #
-########################################################################
-
 # Workspace ----------------------------------------------------------------------------------------------
 # Packages
 library(rgrass7)
@@ -23,7 +16,6 @@ options(stringsAsFactors=FALSE)
 # Input parameters
 initializaNewMapset <- T
 res <- 90 # Resolution for transition targets
-# ecoregion <- 73
 
 # Directories
 gisBase <- "C:/Program Files/GRASS GIS 7.8"
@@ -31,32 +23,15 @@ gisDbase <- "libraries/GRASS"
 spatialDataDir <- "Data/Processed"
 tabularDataDir <- "Data/Processed/tabular"
 resultsDir <- "outputs"
-# subscenariosDir <- paste0("ER", ecoregion, "/STSim/Results/libraries/subscenarios")
-
-# Create directories for initial conditions, transition targets, and transition multipliers
-dir.create(subscenariosDir, recursive = T)
-dir.create(file.path(subscenariosDir, "stsim_InitialConditionsNonSpatial"))
-dir.create(file.path(subscenariosDir, "stsim_InitialConditionsNonSpatialDistribution"))
-dir.create(file.path(subscenariosDir, "stsim_TransitionTarget"))
-dir.create(file.path(subscenariosDir, "stsim_TransitionMultiplierValue"))
-
-# Tabular data - Load
-stateClasses <- read_csv(file=file.path(tabularDataDir, 'Raw', 'State Class.csv'))
-stratumIDs <- ecoregion
-
-# Function - Compute transition matrix
 
 # Set up mapset
-# Open DataPreProcessing
-if(initializaNewMapset){
-  initGRASS(gisBase = "C:/Program Files/GRASS GIS 7.8", gisDbase = "libraries/GRASS/",  
-            location = "Mont", mapset = "PERMANENT", override = TRUE)
-  execGRASS("g.proj", proj4 = projection(raster("Data/Processed/LULC_FocalAreaBuffer.tif")), flags="c")
-  execGRASS("g.mapset", mapset="Monteregie", flags="c")
-  execGRASS("r.in.gdal", input = "Data/Processed/LULC_FocalAreaBuffer.tif", 
-            output = "focal", flag = c("o", "overwrite"))
-  execGRASS("g.region", raster = "focal")
-}
+initGRASS(gisBase = "C:/Program Files/GRASS GIS 7.8", gisDbase = "libraries/GRASS/",  
+          location = "Mont", mapset = "PERMANENT", override = TRUE)
+execGRASS("g.proj", proj4 = projection(raster("Data/Processed/LULC_FocalAreaBuffer.tif")), flags="c")
+execGRASS("g.mapset", mapset="Monteregie", flags="c")
+execGRASS("r.in.gdal", input = "Data/Processed/LULC_FocalAreaBuffer.tif", 
+          output = "focal", flag = c("o", "overwrite"))
+execGRASS("g.region", raster = "focal")
 
 # ST-Sim Initial Conditions ----------------
 
@@ -67,7 +42,6 @@ execGRASS('r.in.gdal', input = "Data/stsim/secondary_stratum_FocalAreaBuffer.tif
 # 2010
 # execGRASS('r.mapcalc', expression = "focalInt = round(focal)", flags = "overwrite")
 # execGRASS('r.mapcalc', expression = "sec_stratumInt = round(sec_stratum)", flags = "overwrite")
-
 execGRASS('r.stats', input = c("focal", "sec_stratum"), flags = c('a', 'i', 'overwrite'), 
           separator = ',', null_value = "NA",
           output = file.path(spatialDataDir, 'tabular', paste0('focal_90m.csv')))
@@ -116,6 +90,13 @@ myDatasheet <- targets %>%
   drop_na() %>% 
   mutate(MultiplierAmount = ifelse(is.na(TotalAmount), 0, TargetAmount/TotalAmount)) %>%
   arrange(SecondaryStratumID) %>%
-  dplyr::select(Timestep, SecondaryStratumID, TransitionGroupID, "Amount"=MultiplierAmount)
+  dplyr::select(Timestep, SecondaryStratumID, TransitionGroupID, "Amount"=MultiplierAmount) %>% 
+  mutate(Timestep=2010)
 
 datasheetName <- "stsim_TransitionMultiplierValue"
+sceMult <- scenario(mylib, 9)
+currentMultipliers <- datasheet(sceMult, "stsim_TransitionMultiplierValue")
+newMultipliers <- bind_rows(currentMultipliers, myDatasheet)
+
+mysce <- scenario(myproj, "Monteregie_Targets_as_multipliers_baseline")
+saveDatasheet(mysce, newMultipliers, datasheetName)
