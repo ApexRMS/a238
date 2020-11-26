@@ -60,7 +60,7 @@ monteregieProj <- st_transform(monteregiePolygon, crs(LULC)) # Reproject polygon
 
 ## Generate natural areas rasters ---------------------------------------------------------
 
-# Natural area classes (codes 511, 512, 513, 522, 523, 531, 532, 533) 
+# Natural area classes (codes 511, 512, 513, 522, 523, 531, 532, 533, 800, 810) 
 
 # Reclassify non-natural areas to NA 
 naturalClass <- data.frame(
@@ -74,8 +74,8 @@ LULCbinary <- calc(LULCnatural, fun = function(x){ifelse(is.na(x), NA, 1)})
 
 ## Generate protected area raster including only those occurring in natural areas
 protectedAreasNatural <- protectedAreas %>%
-  crop(., LULCnatural) %>%
-  mask(., mask = LULCnatural) 
+                          crop(., LULCnatural) %>%
+                          mask(., mask = LULCnatural) 
 
 
 ## Crop areas to Monteregie extent ---------------------------------------------------------
@@ -103,6 +103,35 @@ protectedAreasNaturalFocalArea <- protectedAreasNatural %>%
   mask(., mask= monteregieProj) %>% # Clip to focal areas
   trim(.) # Trim extra white spaces
 
+# 
+protectedAreasFocalArea <- protectedAreas %>%
+  crop(., extent(monteregieProj), snap="out") %>% 
+  mask(., mask= monteregieProj) %>% # Clip to focal areas
+  calc(., fun = function(x){ifelse(x==0, 1, NA)}) 
+#
+protectedAreasTerrestrialFocalArea <- crop(protectedAreasFocalArea, LULCFocalArea) %>%
+                                      mask(., LULCFocalArea)
+protectedAreasTerrestrialFocalArea <- overlay(x=LULCFocalArea, y=protectedAreasTerrestrialFocalArea, fun=function(x,y){x*y}) %>%
+                                      calc(., fun = function(x){ifelse(x==700, NA, x)})  %>%
+                                      calc(., fun=function(x){ifelse(x==-9999, NA, x)})  %>%                                  
+                                      calc(., fun = function(x){ifelse(x>=0, 1, NA)})
+
+
+
+## Calculate some baseline data
+#protectedAreasNaturalFocalArea2 <- protectedAreasNaturalFocalArea %>% calc(., fun = function(x){ifelse(x==0, 1, NA)}) 
+
+#sizePA <- freq(protectedAreasFocalArea)[1,2]
+#sizePANatural <- freq(protectedAreasNaturalFocalArea2)[1,2]
+#sizePAterrestrial <- sum(freq(protectedAreasTerrestrialFocalArea)[c(1:13, 15:16), 2])
+#sizeLULC <- sum(freq(LULCFocalArea)[2:16, 2])
+#sizeNatural <- sum(freq(LULCnaturalFocalArea)[1:11, 2])
+
+#sizenatural/sizeLULC
+#sizePA/sizeLULC
+#sizePAterrestrial/sizeLULC
+#sizePANatural/sizeLULC
+
 
 ## Save natural areas rasters ---------------------------------------------------------
 # Full extent  
@@ -129,7 +158,9 @@ writeRaster(LULCbinaryFocalArea,
 writeRaster(protectedAreasNaturalFocalArea, 
             file.path(procDataDir, "protectedAreasNatural_FocalArea.tif"), 
             overwrite=TRUE)
-
+writeRaster(protectedAreasTerrestrialFocalArea, 
+            file.path(procDataDir, "protectedAreasTerrestrial_FocalArea.tif"), 
+            overwrite=TRUE)
 
 # Create buffer -----------------------------------------------------------
 
