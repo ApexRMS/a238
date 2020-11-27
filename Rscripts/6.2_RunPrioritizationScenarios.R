@@ -77,6 +77,10 @@ evaltext2 <- function(x, y){
 defaultW <- getOption("warn")
 options(warn = -1)
 
+## Load prioritizR solver function
+source("a238/Rscripts/prioritzRSolverFunctions.R")
+
+
 ## 2) Load files ---------------------------------------------------------
 
 # Load species list
@@ -89,6 +93,7 @@ specieslist <- speciesID$Code
 
 # Focal area
 LULC <- raster(file.path(procDataDir, "LULC_FocalArea.tif")) # 1465929 cells
+LULCterrestrial <- calc(LULC, fun=function(x){ifelse(x==700, NA, x)})
 sizeLULC <- 1465929
 naturalAreasFocal <- raster(file.path(procDataDir, "LULCnatural_FocalArea.tif"))
 naturalAreasBinaryFocal <- raster(file.path(procDataDir, "LULCbinary_FocalArea.tif"))
@@ -107,8 +112,8 @@ ecoregions <- raster(file.path(rawDataDir, "StudyArea/PrimaryStratum.tif")) %>%
 
 ecoregionsLULC <- raster(file.path(rawDataDir, "StudyArea/PrimaryStratum.tif")) %>%
   calc(., fun=function(x){ifelse(x==-9999, NA, x)}) %>%
-  crop(., LULC) %>%
-  mask(., LULC)
+  crop(., LULCterrestrial) %>%
+  mask(., LULCterrestrial)
 
 #
 ecozones <- c(1, 3, 4)
@@ -132,9 +137,9 @@ zone1LULC <- calc(ecoregionsLULC, fun=function(x){ifelse(x==1, 1, NA)})
 zone3LULC <- calc(ecoregionsLULC, fun=function(x){ifelse(x==3, 1, NA)})
 zone4LULC <- calc(ecoregionsLULC, fun=function(x){ifelse(x==4, 1, NA)})
 
-zonePA1 <- cellStats(protectedAreasNA1, sum, na.rm=T)/cellStats(zone1LULC, sum, na.rm=T)
-zonePA3 <- cellStats(protectedAreasNA3, sum, na.rm=T)/cellStats(zone3LULC, sum, na.rm=T)
-zonePA4 <- cellStats(protectedAreasNA4, sum, na.rm=T)/cellStats(zone4LULC, sum, na.rm=T)
+zonePA1 <- cellStats(protectedAreasNA1, sum, na.rm=T)#/cellStats(zone1LULC, sum, na.rm=T)
+zonePA3 <- cellStats(protectedAreasNA3, sum, na.rm=T)#/cellStats(zone3LULC, sum, na.rm=T)
+zonePA4 <- cellStats(protectedAreasNA4, sum, na.rm=T)#/cellStats(zone4LULC, sum, na.rm=T)
 
 # Load outputs from Script 6.1
 
@@ -172,83 +177,6 @@ All <- stack(file.path(inputDir,  "All.tif")) %>%
   mask(., naturalAreasBinaryFocal) 
 
 
-## Set Solver for single layer objective problems
-prob <- function(x, y, z, first=F, gap=0.9){ #z is # is number of sites to protect
-  problem(x, y) %>% #input is the cost surface + features 
-    add_max_utility_objective(z) %>% #minimize cost surface
-    add_binary_decisions() %>% #inclusion vs no-inclusion	
-    add_rsymphony_solver(., gap=gap, first_feasible=first) 
-}
-
-# Error checking solver for 1 feature layer prblems
-genericSolver <- function(inputfeaturesAll, costLayerZ, NumSitesGoalZ){
-  inputfeatures <- mask(inputfeaturesAll, costLayerZ) 
-
-tryCatch({  
-  tryCatch({
-    tryCatch({prob(costLayerZ, inputfeatures, NumSitesGoalZ, first=F, gap=2) %>% 
-        solve(.)}, 
-        error=function(e){prob(costLayerZ, inputfeatures, NumSitesGoalZ, first=F, gap=5) %>% 
-            solve(.)}
-    )},
-    error=function(e){prob(costLayerZ, inputfeatures, NumSitesGoalZ, first=T, gap=15) %>%
-        solve(.)}) 
-  },  
-  error=function(e){prob(costLayerZ, inputfeatures, NumSitesGoalZ, first=T, gap=25) %>%
-      solve(.)}) 
-  
-}
-
-# Set up minimum shortfall solver for single layer objective problems
-probMS <- function(x, y, z, first=F, gap=0.9){ #z is # is number of sites to protect
-  problem(x, y) %>% #input is the cost surface + features 
-    add_min_shortfall_objective(z) %>% #minimize cost surface
-    add_relative_targets(0.75) %>%
-    add_binary_decisions() %>% #inclusion vs no-inclusion	
-    add_rsymphony_solver(., gap=gap, first_feasible=first) 
-}
-MSSolver <- function(inputfeaturesAll, costLayerZ, NumSitesGoalZ){
-            inputfeatures <- mask(inputfeaturesAll, costLayerZ) 
-            
-            tryCatch({  
-              tryCatch({
-                tryCatch({probMS(costLayerZ, inputfeatures, NumSitesGoalZ, first=F, gap=2) %>% 
-                    solve(.)}, 
-                    error=function(e){probMS(costLayerZ, inputfeatures, NumSitesGoalZ, first=F, gap=5) %>% 
-                        solve(.)}
-                )},
-                error=function(e){probMS(costLayerZ, inputfeatures, NumSitesGoalZ, first=T, gap=15) %>%
-                    solve(.)}) 
-            },  
-            error=function(e){probMS(costLayerZ, inputfeatures, NumSitesGoalZ, first=T, gap=25) %>%
-                solve(.)}) 
-            }
-
-# Define multiobjective solver, max utility
-probMU <- function(x, y, z, first=F, gap=0.9){ #z is # is number of sites to protect
-  problem(x, y) %>% #input is the cost surface + features 
-    add_max_utility_objective(z) %>% #minimize cost surface
-    add_binary_decisions() %>% #inclusion vs no-inclusion	
-    add_rsymphony_solver(., gap=gap, first_feasible=first) 
-}
-MUSolver <- function(inputfeaturesAll, costLayerZ, NumSitesGoalZ){
-  inputfeatures <- mask(inputfeaturesAll, costLayerZ) 
-  
-  tryCatch({  
-    tryCatch({
-      tryCatch({probMU(costLayerZ, inputfeatures, NumSitesGoalZ, first=F, gap=2) %>% 
-          solve(.)}, 
-          error=function(e){probMU(costLayerZ, inputfeatures, NumSitesGoalZ, first=F, gap=5) %>% 
-              solve(.)}
-      )},
-      error=function(e){probMU(costLayerZ, inputfeatures, NumSitesGoalZ, first=T, gap=15) %>%
-          solve(.)}) 
-  },  
-  error=function(e){probMU(costLayerZ, inputfeatures, NumSitesGoalZ, first=T, gap=25) %>%
-      solve(.)}) 
-  }
-
-
 ## 3) Set prioritization targets  ----------------------------------------------------------------
 
 # Identify all natural areas available for prioritization and omit PA areas
@@ -262,24 +190,17 @@ costLayer4 <- naturalAreasBinaryFocal4 %>%
 
 ## Budget
 
-Budgets <- c(0.05, 0.10, 0.17) #0.104,
+Budgets <- c(0.05, 0.10, 0.17, 0.25) 
 
 Budget <- 0.17  
 
-    # Matches the targets but adjusted for for existing protected land - c(0.05, 0.1, 0.17)
-
-## 3.1) Begin variable target loop  
-#for(v in 1:length(Budgets)){ # Per budget level
-  
-#  Budget <- Budgets[v]
-  
 # Ecoregion budgets, set by by ecoregion size (number of natural area pixels in zone)
-NumSitesGoal1 <- round((Budget-zonePA1) * cellStats(costLayer1, sum), 0) %>%
-                ifelse(. <= 0, 1, .)
-NumSitesGoal3 <- round((Budget-zonePA3) * cellStats(costLayer3, sum), 0)%>%
-  ifelse(. <= 0, 1, .)
-NumSitesGoal4 <- round((Budget-zonePA4) * cellStats(costLayer4, sum), 0)%>%
-  ifelse(. <= 0, 1, .)
+NumSitesGoal1 <- round((Budget * cellStats(zone1LULC, sum, na.rm=T)), 0) - zonePA1
+NumSitesGoal1 <- ifelse(NumSitesGoal1 <= 0, 1, NumSitesGoal1)
+NumSitesGoal3 <- round((Budget * cellStats(zone3LULC, sum, na.rm=T)), 0) - zonePA3
+NumSitesGoal3 <- ifelse(NumSitesGoal3 <= 0, 1, NumSitesGoal3)
+NumSitesGoal4 <- round((Budget * cellStats(zone4LULC, sum, na.rm=T)), 0) - zonePA4
+NumSitesGoal4 <- ifelse(NumSitesGoal4 <= 0, 1, NumSitesGoal4)
   
 
 ## 4) Prioritization scenarios, evaluating ecoregions separately------------------------------------
@@ -351,50 +272,76 @@ NumSitesGoal4 <- round((Budget-zonePA4) * cellStats(costLayer4, sum), 0)%>%
   # Take current density features from multiple species and feature types and summarize into a single layer. 
   # Calculate  a summary value per pixel across all species and feature layers 
   
-statChoice <- c("sum", "mean")
-  
-for(k in statChoice){ # loop over stat choices
-    
+  #sum  
     # Habitat Suitability only
-    SuitabilityK <- stackApply(Suitability, nlayers(Suitability), k, na.rm=TRUE) %>%
+    SuitabilityK <- stackApply(Suitability, nlayers(Suitability), "sum", na.rm=TRUE) %>%
                     calc(., fun = rescaleR) 
     SuitabilitySol1 <- genericSolver(SuitabilityK, costLayer1, NumSitesGoal1)
     SuitabilitySol3 <- genericSolver(SuitabilityK, costLayer3, NumSitesGoal3)
     SuitabilitySol4 <- genericSolver(SuitabilityK, costLayer4, NumSitesGoal4)
-    SuitabilitySol <- mosaic(SuitabilitySol3, SuitabilitySol4, fun="max", na.rm=TRUE) %>%
+    sum_FinalSuitability <- mosaic(SuitabilitySol3, SuitabilitySol4, fun="max", na.rm=TRUE) %>%
       mosaic(., SuitabilitySol1,  fun="max", na.rm=TRUE)
-    assign(paste0(k, "_FinalSuitability"), SuitabilitySol)
     
     # Density  only
-    DensityK <- stackApply(Density, nlayers(Density), k, na.rm=TRUE) %>%
+    DensityK <- stackApply(Density, nlayers(Density), "sum", na.rm=TRUE) %>%
                   calc(., fun = rescaleR) 
     DensitySol1 <- genericSolver(DensityK, costLayer1, NumSitesGoal1)
     DensitySol3 <- genericSolver(DensityK, costLayer3, NumSitesGoal3)
     DensitySol4 <- genericSolver(DensityK, costLayer4, NumSitesGoal4)
-    DensitySol <- mosaic(DensitySol3, DensitySol4, fun="max", na.rm=TRUE) %>%
+    sum_FinalDensity <- mosaic(DensitySol3, DensitySol4, fun="max", na.rm=TRUE) %>%
       mosaic(., DensitySol1,  fun="max", na.rm=TRUE)
-    assign(paste0(k, "_FinalDensity"), DensitySol)
-    
+
     # Habitat area only
-    AreaK <- stackApply(Area, nlayers(Area), k, na.rm=TRUE) %>%
+    AreaK <- stackApply(Area, nlayers(Area), "sum", na.rm=TRUE) %>%
                 calc(., fun = rescaleR) 
     AreaSol1 <- genericSolver(AreaK, costLayer1, NumSitesGoal1)
     AreaSol3 <- genericSolver(AreaK, costLayer3, NumSitesGoal3)
     AreaSol4 <- genericSolver(AreaK, costLayer4, NumSitesGoal4)
-    AreaSol <- mosaic(AreaSol3, AreaSol4, fun="max", na.rm=TRUE) %>%
+    sum_FinalArea <- mosaic(AreaSol3, AreaSol4, fun="max", na.rm=TRUE) %>%
       mosaic(., AreaSol1,  fun="max", na.rm=TRUE)
-    assign(paste0(k, "_FinalArea"), AreaSol)
-    
-    AllK <- stackApply(All, nlayers(All), k, na.rm=TRUE) %>%
+
+    AllK <- stackApply(All, nlayers(All), "sum", na.rm=TRUE) %>%
                calc(., fun = rescaleR) 
     AllSol1 <- genericSolver(AllK, costLayer1, NumSitesGoal1)
     AllSol3 <- genericSolver(AllK, costLayer3, NumSitesGoal3)
     AllSol4 <- genericSolver(AllK, costLayer4, NumSitesGoal4)
-    AllSol <- mosaic(AllSol3, AllSol4, fun="max", na.rm=TRUE) %>%
+    sum_FinalAll <- mosaic(AllSol3, AllSol4, fun="max", na.rm=TRUE) %>%
       mosaic(., AllSol1,  fun="max", na.rm=TRUE)
-    assign(paste0(k, "_FinalAll"), AllSol)
+
+    # mean
+    SuitabilityK <- stackApply(Suitability, nlayers(Suitability), "mean", na.rm=TRUE) %>%
+      calc(., fun = rescaleR) 
+    SuitabilitySol1 <- genericSolver(SuitabilityK, costLayer1, NumSitesGoal1)
+    SuitabilitySol3 <- genericSolver(SuitabilityK, costLayer3, NumSitesGoal3)
+    SuitabilitySol4 <- genericSolver(SuitabilityK, costLayer4, NumSitesGoal4)
+    mean_FinalSuitability <- mosaic(SuitabilitySol3, SuitabilitySol4, fun="max", na.rm=TRUE) %>%
+      mosaic(., SuitabilitySol1,  fun="max", na.rm=TRUE)
     
-  } #end stat choice loop     
+    # Density  only
+    DensityK <- stackApply(Density, nlayers(Density), "mean", na.rm=TRUE) %>%
+      calc(., fun = rescaleR) 
+    DensitySol1 <- genericSolver(DensityK, costLayer1, NumSitesGoal1)
+    DensitySol3 <- genericSolver(DensityK, costLayer3, NumSitesGoal3)
+    DensitySol4 <- genericSolver(DensityK, costLayer4, NumSitesGoal4)
+    mean_FinalDensity <- mosaic(DensitySol3, DensitySol4, fun="max", na.rm=TRUE) %>%
+      mosaic(., DensitySol1,  fun="max", na.rm=TRUE)
+    
+    # Habitat area only
+    AreaK <- stackApply(Area, nlayers(Area), "mean", na.rm=TRUE) %>%
+      calc(., fun = rescaleR) 
+    AreaSol1 <- genericSolver(AreaK, costLayer1, NumSitesGoal1)
+    AreaSol3 <- genericSolver(AreaK, costLayer3, NumSitesGoal3)
+    AreaSol4 <- genericSolver(AreaK, costLayer4, NumSitesGoal4)
+    mean_FinalArea <- mosaic(AreaSol3, AreaSol4, fun="max", na.rm=TRUE) %>%
+      mosaic(., AreaSol1,  fun="max", na.rm=TRUE)
+    
+    AllK <- stackApply(All, nlayers(All), "mean", na.rm=TRUE) %>%
+      calc(., fun = rescaleR) 
+    AllSol1 <- genericSolver(AllK, costLayer1, NumSitesGoal1)
+    AllSol3 <- genericSolver(AllK, costLayer3, NumSitesGoal3)
+    AllSol4 <- genericSolver(AllK, costLayer4, NumSitesGoal4)
+    mean_FinalAll <- mosaic(AllSol3, AllSol4, fun="max", na.rm=TRUE) %>%
+      mosaic(., AllSol1,  fun="max", na.rm=TRUE)
   
   
 ## 4.5) Using minimize_shortfall_objective in prioritizer--------------------------------
