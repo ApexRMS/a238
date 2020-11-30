@@ -25,7 +25,6 @@ library(sp)
 
 ## Directories
 
-#setwd("~/Dropbox/Documents/ApexRMS/Work/A238 - Multispecies Connectivity/")
 setwd("c:/Users/carol/Dropbox/Documents/ApexRMS/Work/A238 - Multispecies Connectivity")
 
 rawDataDir <- "Data/Raw"
@@ -52,10 +51,14 @@ species <- read.csv(file.path(
 specieslist <- species$Code
 specieslist <- specieslist[specieslist != ""]
 
+
+## Generate habitat suitability files for all species ---------------------------------
+
 ## for loop to run separately for buffered and unbuffered file versions
 
 type <- c("Unbuffered", "Buffer")
- for(k in type){
+
+for(k in type){
 
 	j <- ifelse(k == "Unbuffered", ".tif", "Buffer.tif")
 
@@ -63,8 +66,6 @@ type <- c("Unbuffered", "Buffer")
 LULC <- raster(file.path(procDataDir, paste0("LULC_FocalArea", j)))
 naturalAreas <- raster(file.path(procDataDir, paste0("LULCnatural_FocalArea", j)))
 
-
-## Generate habitat suitability files for all species --------------------------
 
 # for loop over all species in species list
 
@@ -89,7 +90,7 @@ for(i in specieslist){
   habitatClump <- clump(habitatRaster)
   habitatClumpID <- data.frame(freq(habitatClump))
   # Identify patches less than minimum
-  habitatClumpID <- habitatClumpID[habitatClumpID$count < patchSizeThreshold/conversionFromHa, ]
+  habitatClumpID <- habitatClumpID[(habitatClumpID$count < patchSizeThreshold/conversionFromHa), ]
   
   # Remove clump observations smaller than minimum habitat patch size (ha)
   habitatRaster[Which(habitatClump %in% habitatClumpID$value)] <- 0
@@ -105,8 +106,26 @@ for(i in specieslist){
                       fun = function(x){
                         habitatClumpAreaID[x, 2] })
   
+## Crop to LULC for full maps-------------------------------------------------------  
   
-  ## Crop to Focal Area extent ---------------------------------------------------------
+  # Habitat suitability only
+  suitabilityRaster <-  suitabilityRaster %>%
+    crop(., LULC) %>%
+    mask(., LULC)
+  # Binary, suitable habitat by size and threshold
+  habitatRaster <- habitatRaster %>%
+    crop(., LULC) %>%
+    mask(., LULC)
+  # Habitat area value per pixel
+  habitatArea <- habitatArea %>%
+    crop(., LULC) %>%
+    mask(., LULC)	
+  # Patch ID
+  habitatRasterCont <-  habitatRasterCont %>%
+    crop(., LULC) %>%
+    mask(., LULC)	
+  
+## Crop to Focal Area extent ---------------------------------------------------------
   # Habitat suitability only
   suitabilityRasterFocal <-  suitabilityRaster %>%
     crop(., naturalAreas) %>%

@@ -20,7 +20,6 @@ library(sp)
 library(vegan)
 
 
-#setwd("~/Dropbox/Documents/ApexRMS/Work/A238 - Multispecies Connectivity/")
 setwd("c:/Users/carol/Dropbox/Documents/ApexRMS/Work/A238 - Multispecies Connectivity")
 
 ## Functions
@@ -39,7 +38,6 @@ rescaleR <- function(x, new.min = 0, new.max = 1){
 ## Directories
 rawDataDir <- "Data/Raw"
 procDataDir <- "Data/Processed"
-outDir <- "outputs"
 
 ## Load species list
 speciesID <- read.csv(
@@ -69,14 +67,10 @@ All <- evaltext(specieslist, "_resistance")
 resistanceAll <- stack(All)  
 
 
-## Calculate summary files
+## Calculate summary files---------------------------------------------------------------------
 
 #mean
 combinedResistanceMean <- stackApply(resistanceAll, nlayers(resistanceAll), "mean", na.rm=TRUE) %>%
-  calc(., fun=function(x){rescaleR(x, new.min = 1, new.max = 32)})
-
-#max
-combinedResistanceMax <- stackApply(resistanceAll, nlayers(resistanceAll), "max", na.rm=TRUE) %>%
   calc(., fun=function(x){rescaleR(x, new.min = 1, new.max = 32)})
 
 #sum
@@ -90,9 +84,6 @@ combinedResistanceSum <- stackApply(resistanceAll, nlayers(resistanceAll), "sum"
 
 writeRaster(combinedResistanceMean, 
             filename=file.path(procDataDir,  "combinedResistanceRaster_Mean.tif"), 
-            overwrite=TRUE)
-writeRaster(combinedResistanceMax, 
-            filename=file.path(procDataDir,  "combinedResistanceRaster_Max.tif"), 
             overwrite=TRUE)
 writeRaster(combinedResistanceSum, 
             filename=file.path(procDataDir,  "combinedResistanceRaster_Sum.tif"), 
