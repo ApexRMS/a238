@@ -92,14 +92,15 @@ specieslist <- speciesID$Code
 
 # Focal area
 LULC <- raster(file.path(procDataDir, "LULC_FocalArea.tif")) # 1465929 cells
-#sizeLULC <- 1465929
+LULCterrestrial <- calc(LULC, fun=function(x){ifelse(x==700, NA, x)})
+sizeLULC <- 1465929
 naturalAreasFocal <- raster(file.path(procDataDir, "LULCnatural_FocalArea.tif"))
 naturalAreasBinaryFocal <- raster(file.path(procDataDir, "LULCbinary_FocalArea.tif"))
-#sizenatural <- 450287
+sizenatural <- 450287
 
 # Protected areas
 protectedAreas <- raster(file.path(procDataDir, "protectedAreasTerrestrial_FocalArea.tif"))%>%
-                  crop(., naturalAreasFocal)
+  crop(., naturalAreasFocal)
 
 # Ecoregions 
 ecoregions <- raster(file.path(rawDataDir, "StudyArea/PrimaryStratum.tif")) %>%
@@ -110,8 +111,8 @@ ecoregions <- raster(file.path(rawDataDir, "StudyArea/PrimaryStratum.tif")) %>%
 
 ecoregionsLULC <- raster(file.path(rawDataDir, "StudyArea/PrimaryStratum.tif")) %>%
   calc(., fun=function(x){ifelse(x==-9999, NA, x)}) %>%
-  crop(., LULC) %>%
-  mask(., LULC)
+  crop(., LULCterrestrial) %>%
+  mask(., LULCterrestrial)
 
 #
 ecozones <- c(1, 3, 4)
@@ -129,15 +130,15 @@ protectedAreasNA1 <-  mask(protectedAreas, zone1)
 protectedAreasNA3 <-  mask(protectedAreas, zone3)
 protectedAreasNA4 <-  mask(protectedAreas, zone4)
 
-  # Calculate zone-specific % protected areas
+# Calculate zone-specific % protected areas
 
 zone1LULC <- calc(ecoregionsLULC, fun=function(x){ifelse(x==1, 1, NA)})
 zone3LULC <- calc(ecoregionsLULC, fun=function(x){ifelse(x==3, 1, NA)})
 zone4LULC <- calc(ecoregionsLULC, fun=function(x){ifelse(x==4, 1, NA)})
 
-zonePA1 <- cellStats(protectedAreasNA1, sum, na.rm=T)/cellStats(zone1LULC, sum, na.rm=T)
-zonePA3 <- cellStats(protectedAreasNA3, sum, na.rm=T)/cellStats(zone3LULC, sum, na.rm=T)
-zonePA4 <- cellStats(protectedAreasNA4, sum, na.rm=T)/cellStats(zone4LULC, sum, na.rm=T)
+zonePA1 <- cellStats(protectedAreasNA1, sum, na.rm=T)#/cellStats(zone1LULC, sum, na.rm=T)
+zonePA3 <- cellStats(protectedAreasNA3, sum, na.rm=T)#/cellStats(zone3LULC, sum, na.rm=T)
+zonePA4 <- cellStats(protectedAreasNA4, sum, na.rm=T)#/cellStats(zone4LULC, sum, na.rm=T)
 
 # Load outputs from Script 6.1
 
@@ -175,10 +176,10 @@ All <- stack(file.path(inputDir,  "All.tif")) %>%
   mask(., naturalAreasBinaryFocal) 
 
 
-
 ## 3) Set prioritization targets  ----------------------------------------------------------------
 
 # Identify all natural areas available for prioritization and omit PA areas
+
 costLayer1 <- naturalAreasBinaryFocal1 %>%
   mask(., protectedAreasNA1, inv=TRUE) #omit protected area cells
 costLayer3 <- naturalAreasBinaryFocal3 %>%
@@ -188,17 +189,15 @@ costLayer4 <- naturalAreasBinaryFocal4 %>%
 
 ## Budget
 
-
 Budget <- 0.17  
 
 # Ecoregion budgets, set by by ecoregion size (number of natural area pixels in zone)
-NumSitesGoal1 <- round((Budget-zonePA1) * cellStats(costLayer1, sum), 0) %>%
-                ifelse(. <= 0, 1, .)
-NumSitesGoal3 <- round((Budget-zonePA3) * cellStats(costLayer3, sum), 0)%>%
-  ifelse(. <= 0, 1, .)
-NumSitesGoal4 <- round((Budget-zonePA3) * cellStats(costLayer4, sum), 0)%>%
-  ifelse(. <= 0, 1, .)
-  
+NumSitesGoal1 <- round((Budget * cellStats(zone1LULC, sum, na.rm=T)), 0) - zonePA1
+NumSitesGoal1 <- ifelse(NumSitesGoal1 <= 0, 1, NumSitesGoal1)
+NumSitesGoal3 <- round((Budget * cellStats(zone3LULC, sum, na.rm=T)), 0) - zonePA3
+NumSitesGoal3 <- ifelse(NumSitesGoal3 <= 0, 1, NumSitesGoal3)
+NumSitesGoal4 <- round((Budget * cellStats(zone4LULC, sum, na.rm=T)), 0) - zonePA4
+NumSitesGoal4 <- ifelse(NumSitesGoal4 <= 0, 1, NumSitesGoal4)
 
 ## 4) Prioritization scenarios, evaluating ecoregions separately------------------------------------
   
@@ -213,7 +212,6 @@ genericTime <- system.time({
   genericResSol <- mosaic(genericResSol3, genericResSol4, fun="max", na.rm=TRUE) %>%
     mosaic(., genericResSol1, fun="max", na.rm=TRUE)
   })[3]
-)
 print(genericTime)
 object_size(genericResSol1, genericResSol3, genericResSol4, genericRes, genericResSol)  
 
@@ -291,10 +289,9 @@ object_size(MeanResDensity1, MeanResDensity3, MeanResDensity4, ResDensity[["Mean
   # Take current density features from multiple species and feature types and summarize into a single layer. 
   # Calculate  a summary value per pixel across all species and feature layers 
   
-statChoice <- c("sum", "mean")
-  
-for(k in statChoice){ # loop over stat choices
- 
+
+k="sum"
+k="mean"
  
     # Habitat Suitability only
 genericTime <- system.time({    
@@ -351,8 +348,7 @@ genericTime <- system.time({
 print(genericTime)
  object_size(All, AllK, AllSol1, AllSol3, AllSol4, AllSol)  
     
-  } #end stat choice loop     
-  
+
 
 ## 4.5) Using minimize_shortfall_objective in prioritizer--------------------------------
 

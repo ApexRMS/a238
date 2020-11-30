@@ -1,9 +1,7 @@
 #########################################################################################
 # a238 Multispecies prioritization for the Monteregie       
-# Explore approaches to prioritizing the region over 3 ecoregions
+# Run prioritization scenarioswith variable targets
 # 10-2020                                       					
-# 
-# Part B: Run prioritization case  with variable targets 
 #
 #	  Inputs:                                
 #    - Load input rasters from 6.1_PrepareInputsPrioritizationScenario
@@ -46,8 +44,9 @@ library(Rsymphony)
 library(zonator)
 library(purrr)
 
-
 setwd("c:/Users/carol/Dropbox/Documents/ApexRMS/Work/A238 - Multispecies Connectivity")
+
+options(warn = -1)
 
 ## Directories
 rawDataDir <- "Data/Raw"
@@ -74,8 +73,6 @@ evaltext2 <- function(x, y){
            eval(parse(text = paste0(x, Y)))}
   )}
 
-defaultW <- getOption("warn")
-options(warn = -1)
 
 ## Load prioritizR solver function
 source("a238/Rscripts/prioritzRSolverFunctions.R")
@@ -103,13 +100,14 @@ sizenatural <- 450287
 protectedAreas <- raster(file.path(procDataDir, "protectedAreasTerrestrial_FocalArea.tif"))%>%
                   crop(., naturalAreasFocal)
 
-# Ecoregions 
+# Ecoregions - natural areas
 ecoregions <- raster(file.path(rawDataDir, "StudyArea/PrimaryStratum.tif")) %>%
   calc(., fun=function(x){ifelse(x==-9999, NA, x)}) %>%
   crop(., naturalAreasFocal) %>%
   mask(., naturalAreasFocal)
 # Ecoregions - zone1 Adirondacks, zone 4 = StL lowlands, Zone 3 = appalachians
 
+#Eco regions all terrestrial areas
 ecoregionsLULC <- raster(file.path(rawDataDir, "StudyArea/PrimaryStratum.tif")) %>%
   calc(., fun=function(x){ifelse(x==-9999, NA, x)}) %>%
   crop(., LULCterrestrial) %>%
@@ -131,8 +129,7 @@ protectedAreasNA1 <-  mask(protectedAreas, zone1)
 protectedAreasNA3 <-  mask(protectedAreas, zone3)
 protectedAreasNA4 <-  mask(protectedAreas, zone4)
 
-  # Calculate zone-specific % protected areas
-
+# Calculate zone-specific % protected areas
 zone1LULC <- calc(ecoregionsLULC, fun=function(x){ifelse(x==1, 1, NA)})
 zone3LULC <- calc(ecoregionsLULC, fun=function(x){ifelse(x==3, 1, NA)})
 zone4LULC <- calc(ecoregionsLULC, fun=function(x){ifelse(x==4, 1, NA)})
@@ -142,7 +139,6 @@ zonePA3 <- cellStats(protectedAreasNA3, sum, na.rm=T)#/cellStats(zone3LULC, sum,
 zonePA4 <- cellStats(protectedAreasNA4, sum, na.rm=T)#/cellStats(zone4LULC, sum, na.rm=T)
 
 # Load outputs from Script 6.1
-
 genericRes <- stack(file.path(inputDir,  "genericResAll.tif")) %>%
   crop(., naturalAreasBinaryFocal) %>%
   mask(., naturalAreasBinaryFocal) 
@@ -180,7 +176,6 @@ All <- stack(file.path(inputDir,  "All.tif")) %>%
 ## 3) Set prioritization targets  ----------------------------------------------------------------
 
 # Identify all natural areas available for prioritization and omit PA areas
-
 costLayer1 <- naturalAreasBinaryFocal1 %>%
   mask(., protectedAreasNA1, inv=TRUE) #omit protected area cells
 costLayer3 <- naturalAreasBinaryFocal3 %>%
@@ -188,13 +183,12 @@ costLayer3 <- naturalAreasBinaryFocal3 %>%
 costLayer4 <- naturalAreasBinaryFocal4 %>%
   mask(., protectedAreasNA4, inv=TRUE) #omit protected area cells
 
-## Budget
+## Budget - Change budget as desired ##
+#Budgets <- c(0.05, 0.10, 0.17) 
 
-Budgets <- c(0.05, 0.10, 0.17, 0.25) 
+Budget <- 0.17 
 
-Budget <- 0.17  
-
-# Ecoregion budgets, set by by ecoregion size (number of natural area pixels in zone)
+# Calculate ecoregion budgets, set by by ecoregion size (number of natural area pixels in zone)
 NumSitesGoal1 <- round((Budget * cellStats(zone1LULC, sum, na.rm=T)), 0) - zonePA1
 NumSitesGoal1 <- ifelse(NumSitesGoal1 <= 0, 1, NumSitesGoal1)
 NumSitesGoal3 <- round((Budget * cellStats(zone3LULC, sum, na.rm=T)), 0) - zonePA3
@@ -246,10 +240,9 @@ NumSitesGoal4 <- ifelse(NumSitesGoal4 <= 0, 1, NumSitesGoal4)
                        mosaic(., resTrophicCombSol1, fun="max", na.rm=TRUE)
 
 
-  
 ## 4.3) Summarizes Resistance into Current Density ------------------------------------------------------------
   
-  # Current density layers calculated as the sum, mean, or max of species resistance layers
+  # Current density layers calculated as the sum, mean of species resistance layers
   # Input = 1 layer, which is a summary of resistances to produce density
   
   SumResDensity1 <- genericSolver(ResDensity[["SumResDensity"]], costLayer1, NumSitesGoal1)
@@ -272,7 +265,7 @@ NumSitesGoal4 <- ifelse(NumSitesGoal4 <= 0, 1, NumSitesGoal4)
   # Take current density features from multiple species and feature types and summarize into a single layer. 
   # Calculate  a summary value per pixel across all species and feature layers 
   
-  #sum  
+# Sum  
     # Habitat Suitability only
     SuitabilityK <- stackApply(Suitability, nlayers(Suitability), "sum", na.rm=TRUE) %>%
                     calc(., fun = rescaleR) 
@@ -308,7 +301,8 @@ NumSitesGoal4 <- ifelse(NumSitesGoal4 <= 0, 1, NumSitesGoal4)
     sum_FinalAll <- mosaic(AllSol3, AllSol4, fun="max", na.rm=TRUE) %>%
       mosaic(., AllSol1,  fun="max", na.rm=TRUE)
 
-    # mean
+# Mean
+    # Habitat suitability
     SuitabilityK <- stackApply(Suitability, nlayers(Suitability), "mean", na.rm=TRUE) %>%
       calc(., fun = rescaleR) 
     SuitabilitySol1 <- genericSolver(SuitabilityK, costLayer1, NumSitesGoal1)
@@ -436,7 +430,7 @@ mapNames <- c("genericResSol",
                 "mean_FinalDensity",
                 "mean_FinalArea",
                 "mean_FinalAll",
-                 "minShortSuitSol",
+                "minShortSuitSol",
                 "minShortDensitySol",
                 "minShortAreaSol",
                 "minShortAllSol",
@@ -449,42 +443,37 @@ names(outputAll) <- mapNames
 outputAll <- mask(outputAll, Suitability[[1]])
   
   
-# Export solution rasters 
+  # Export solution rasters as single rasterStack
 writeRaster(outputAll, 
               filename=file.path(outDir, paste0("Allsolutions_", Budget, ".tif")), 
               overwrite=TRUE)
-  
-rm(k, outputAll, 
-   genericResSol,
-   FinalEcoprofileTaxon,
-   FinalEcoprofileTrophic,
-   FinalSumResDensity,
-   FinalMeanResDensity,
-   sum_FinalSuitability,
-   sum_FinalDensity,
-   sum_FinalArea,
-   sum_FinalAll,
-   mean_FinalSuitability,
-   mean_FinalDensity,
-   mean_FinalArea,
-   mean_FinalAll,
-   minShortSuitSol,
-   minShortDensitySol,
-   minShortAreaSol,
-   minShortAllSol,
-   maxUtilitySuitSol,
-   maxUtilityDensitySol,
-   maxUtilityAreaSol,
-   maxUtilityAllSol)
 
-
-
+  # Individual maps
+properNames <- c("Generic-Resistance",
+              "Ecoprofile-Taxon",
+              "Ecoprofile-Trophic",
+              "Sum-Species-Resistance",
+              "Mean-Species-Resistance",
+              "Sum-Species-Suitability",
+              "Sum-Species-Density",
+              "Sum-Species-Area",
+              "Sum-Species-All",
+              "Mean-Species-Suitability",
+              "Mean-Species-Density",
+              "Mean-Species-Area",
+              "Mean-Species-All",
+              "Minimize-Shortfall-Species-Suitability",
+              "Minimize-Shortfall-Species-Density",
+              "Minimize-Shortfall-Species-Area",
+              "Minimize-Shortfall-Species-All",
+              "Maximum-Utility-Species-Suitability",
+              "Maximum-Utility-Species-Density",
+              "Maximum-Utility-Species-Area",
+              "Maximum-Utility-Species-All")
+writeRaster(outputAll, 
+            filename=file.path(outDir, paste0(properNames, Budget, ".tif")), 
+            bylayer=TRUE,
+            overwrite=TRUE)
 
 
 ## End script ---------------------------------------------------------------------------
-
-
-
-
-
-
