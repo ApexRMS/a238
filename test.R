@@ -60,7 +60,7 @@ ic2010 <- read_csv("Data/Processed/tabular/focal_90m.csv",
   mutate(Timestep = 2000)
 
 # Transition Multipliers ----------------------------------------------------------------------
-cellAreaSqKm <- (res*res)/1000000 # Area of an individual cell, in km2
+cellAreaHectares <- (res*res)/10000 # Area of an individual cell, in hectares
 
 # Get targets + stratums
 mylib <- ssimLibrary("libraries/BTSL_stconnect.ssim/BTSL_stconnect.ssim")
@@ -84,7 +84,7 @@ stateClassTotalAmount <- bind_rows(ic2010) %>%
 
 myDatasheet <- targets %>%
   mutate(FromStateClass = gsub("->.*","",TransitionGroupID),
-         TargetAmount = ifelse(Amount < cellAreaSqKm, 0, Amount)) %>%
+         TargetAmount = ifelse(Amount < cellAreaHectares, 0, Amount)) %>%
   dplyr::select(-Amount) %>%
   left_join(stateClassTotalAmount, by=c("Timestep", "SecondaryStratumID", "FromStateClass")) %>%
   drop_na() %>% 
