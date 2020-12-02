@@ -99,4 +99,4 @@ currentMultipliers <- datasheet(sceMult, "stsim_TransitionMultiplierValue")
 newMultipliers <- bind_rows(currentMultipliers, myDatasheet)
 
 mysce <- scenario(myproj, "Monteregie_Targets_as_multipliers_baseline")
-saveDatasheet(mysce, newMultipliers, datasheetName)
+saveDatasheet(mysce, newMultipliers, datasheetName, append = FALSE)
