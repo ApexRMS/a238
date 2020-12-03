@@ -15,7 +15,6 @@ Sys.setenv(TZ='GMT')
 options(stringsAsFactors=FALSE)
 
 # Input parameters
-initializaNewMapset <- T
 res <- 90 # Resolution for transition targets
 
 # Directories
@@ -58,7 +57,7 @@ ic2010 <- read_csv("Data/Processed/tabular/focal_90m.csv",
 ) %>% rename('StateClassID' = X1, 'ID' = X2, 'TotalAmount' = X3) %>% 
   filter(!is.na(StateClassID)) %>% 
   filter(ID != 0) %>% 
-  mutate(Timestep = 2000)
+  mutate(Timestep = 2000) # not 2010 because we need to match the targets
 
 # Transition Multipliers ----------------------------------------------------------------------
 cellAreaHectares <- (res*res)/10000 # Area of an individual cell, in hectares
@@ -68,21 +67,28 @@ mylib <- ssimLibrary("libraries/BTSL_stconnect.ssim/BTSL_stconnect.ssim")
 sceTar <- scenario(mylib, 7)
 myproj <- project(mylib, "Definitions")
 
-targets <- datasheet(sceTar, "stsim_TransitionTarget") %>% 
+targets <- datasheet(sceTar, "stsim_TransitionTarget") %>%
+  # Drop the fct because we dont want TST
   mutate(TransitionGroupID = fct_drop(TransitionGroupID))
 secondaryStratumDatasheet <- datasheet(myproj, "stsim_SecondaryStratum")
 StateClassDatasheet <- datasheet(myproj, "stsim_StateClass") %>% 
   dplyr::select(Name, ID) %>% 
   rename(ID_SC = ID)
 
-# Combine all years
+# Combine with stsim data
 stateClassTotalAmount <- bind_rows(ic2010) %>%
+  # Join with state class
   left_join(StateClassDatasheet, by = c("StateClassID"="ID_SC")) %>% 
   mutate(FromStateClass = gsub(":All*","", Name)) %>% 
   rename(StateClass_Name=Name) %>% 
+  
+  # Then with sec stratum
   left_join(secondaryStratumDatasheet, by = "ID") %>% 
   dplyr::select(Timestep, 'SecondaryStratumID'=Name, FromStateClass, TotalAmount) %>% 
+  # Important to turn the values from m2 to hectares
   mutate(TotalAmount = TotalAmount/10000) %>% ungroup() %>% 
+  
+  # SUM of forest types because targets are specified at the level of forest only
   mutate(ForestOrNot = str_detect(FromStateClass, "Forest:")) %>% 
   mutate(FromStateClass=ifelse(ForestOrNot, "Forest", FromStateClass)) %>% 
   select(-ForestOrNot) %>% 
@@ -92,21 +98,52 @@ stateClassTotalAmount <- bind_rows(ic2010) %>%
 myDatasheet <- targets %>%
   # mutate(FromStateClass = gsub("->.*","",TransitionGroupID),
   #        TargetAmount = ifelse(Amount < cellAreaHectares, 0, Amount)) %>%
+  # Here we decide to keep targets smaller than one cell
   mutate(FromStateClass = gsub("->.*","",TransitionGroupID), TargetAmount = Amount) %>%
   dplyr::select(-Amount) %>%
+  
+  # Join with the total amount
   left_join(stateClassTotalAmount, by=c("Timestep", "SecondaryStratumID", "FromStateClass")) %>%
-  drop_na() %>% 
+  drop_na() %>% # this drops row count by half due to unmatched 1990 timestep
+  
+  # Calculate the multiplier
   mutate(MultiplierAmount = ifelse(is.na(TotalAmount), 0, TargetAmount/TotalAmount)) %>%
   arrange(SecondaryStratumID) %>%
+  
+  # Select columns and change the timestep
   dplyr::select(Timestep, SecondaryStratumID, TransitionGroupID, "Amount"=MultiplierAmount) %>% 
   mutate(Timestep=2010) %>%
   # mutate(TransitionGroupID = fct_drop(TransitionGroupID)) %>% 
+  
+  # complete combinations
   complete(Timestep, SecondaryStratumID, TransitionGroupID, fill = list(Amount =0))
 
+# Combine with the other multipliers --------------------------------------
+
 datasheetName <- "stsim_TransitionMultiplierValue"
-sceMult <- scenario(mylib, 9) # Baseline
+
+# Baseline
+sceMult <- scenario(mylib, 9)
 currentMultipliers <- datasheet(sceMult, "stsim_TransitionMultiplierValue")
 newMultipliers <- bind_rows(currentMultipliers, myDatasheet)
 
 mysce <- scenario(myproj, "Multipliers: Targets + Climate Baseline")
 saveDatasheet(mysce, newMultipliers, datasheetName, append = FALSE)
+
+# 4.5
+sceMult45 <- scenario(mylib, 97)
+# currentMultipliers45 <- datasheet(sceMult45, "stsim_TransitionMultiplierValue") # This doesnt't work!
+currentMultipliers45 <- read.csv("config/stsim/TransitionMultipliers45_new.csv")
+newMultipliers45 <- bind_rows(currentMultipliers45, myDatasheet)
+
+mysce45 <- scenario(myproj, "Multipliers: Targets + Climate RCP4.5")
+saveDatasheet(mysce45, newMultipliers45[,-1], datasheetName, append = FALSE)
+
+# 8.5
+sceMult85 <- scenario(mylib, 98)
+# currentMultipliers85 <- datasheet(sceMult85, "stsim_TransitionMultiplierValue") # This doesnt't work!
+currentMultipliers85 <- read.csv("config/stsim/TransitionMultipliers85_new.csv")
+newMultipliers85 <- bind_rows(currentMultipliers85, myDatasheet)
+
+mysce85 <- scenario(myproj, "Multipliers: Targets + Climate RCP8.5")
+saveDatasheet(mysce85, newMultipliers85[,-1], datasheetName, append = FALSE)
