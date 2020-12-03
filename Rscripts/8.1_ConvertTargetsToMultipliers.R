@@ -1,5 +1,5 @@
-#### a238
-#### From a script by Chloé Debyser, Andy Kleinhesselink, Bronwyn Rayfield
+## A238 Convert targets to multipliers
+## Adapted from a script by Chloé Debyser, Andy Kleinhesselink, Bronwyn Rayfield
 
 # Workspace ----------------------------------------------------------------------------------------------
 # Packages
