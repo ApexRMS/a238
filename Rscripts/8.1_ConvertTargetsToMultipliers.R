@@ -8,6 +8,7 @@ library(tidyverse)
 library(ggplot2)
 library(scales)
 library(rsyncrosim)
+library(stringr)
 
 # Settings
 Sys.setenv(TZ='GMT')
@@ -67,7 +68,8 @@ mylib <- ssimLibrary("libraries/BTSL_stconnect.ssim/BTSL_stconnect.ssim")
 sceTar <- scenario(mylib, 7)
 myproj <- project(mylib, "Definitions")
 
-targets <- datasheet(sceTar, "stsim_TransitionTarget")
+targets <- datasheet(sceTar, "stsim_TransitionTarget") %>% 
+  mutate(TransitionGroupID = fct_drop(TransitionGroupID))
 secondaryStratumDatasheet <- datasheet(myproj, "stsim_SecondaryStratum")
 StateClassDatasheet <- datasheet(myproj, "stsim_StateClass") %>% 
   dplyr::select(Name, ID) %>% 
@@ -80,23 +82,31 @@ stateClassTotalAmount <- bind_rows(ic2010) %>%
   rename(StateClass_Name=Name) %>% 
   left_join(secondaryStratumDatasheet, by = "ID") %>% 
   dplyr::select(Timestep, 'SecondaryStratumID'=Name, FromStateClass, TotalAmount) %>% 
-  mutate(TotalAmount = TotalAmount/10000)
+  mutate(TotalAmount = TotalAmount/10000) %>% ungroup() %>% 
+  mutate(ForestOrNot = str_detect(FromStateClass, "Forest:")) %>% 
+  mutate(FromStateClass=ifelse(ForestOrNot, "Forest", FromStateClass)) %>% 
+  select(-ForestOrNot) %>% 
+  group_by(Timestep, SecondaryStratumID, FromStateClass) %>% 
+  summarise(TotalAmount = sum(TotalAmount))
 
 myDatasheet <- targets %>%
-  mutate(FromStateClass = gsub("->.*","",TransitionGroupID),
-         TargetAmount = ifelse(Amount < cellAreaHectares, 0, Amount)) %>%
+  # mutate(FromStateClass = gsub("->.*","",TransitionGroupID),
+  #        TargetAmount = ifelse(Amount < cellAreaHectares, 0, Amount)) %>%
+  mutate(FromStateClass = gsub("->.*","",TransitionGroupID), TargetAmount = Amount) %>%
   dplyr::select(-Amount) %>%
   left_join(stateClassTotalAmount, by=c("Timestep", "SecondaryStratumID", "FromStateClass")) %>%
   drop_na() %>% 
   mutate(MultiplierAmount = ifelse(is.na(TotalAmount), 0, TargetAmount/TotalAmount)) %>%
   arrange(SecondaryStratumID) %>%
   dplyr::select(Timestep, SecondaryStratumID, TransitionGroupID, "Amount"=MultiplierAmount) %>% 
-  mutate(Timestep=2010)
+  mutate(Timestep=2010) %>%
+  # mutate(TransitionGroupID = fct_drop(TransitionGroupID)) %>% 
+  complete(Timestep, SecondaryStratumID, TransitionGroupID, fill = list(Amount =0))
 
 datasheetName <- "stsim_TransitionMultiplierValue"
-sceMult <- scenario(mylib, 9)
+sceMult <- scenario(mylib, 9) # Baseline
 currentMultipliers <- datasheet(sceMult, "stsim_TransitionMultiplierValue")
 newMultipliers <- bind_rows(currentMultipliers, myDatasheet)
 
-mysce <- scenario(myproj, "Monteregie_Targets_as_multipliers_baseline")
+mysce <- scenario(myproj, "Multipliers: Targets + Climate Baseline")
 saveDatasheet(mysce, newMultipliers, datasheetName, append = FALSE)
