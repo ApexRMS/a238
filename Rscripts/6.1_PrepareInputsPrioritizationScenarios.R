@@ -9,10 +9,13 @@
 #    - protected areas layer
 #	   - natural areas layer 
 #	   - ecoregions layer
-#  
+#
+#   - Suitability and Area data are also generated with a small amount of random variation 
+#       - Names include "R" to identify these. 
+#       - Generated w rnorm(x, 0, 0.001) - less than expected d/t meaningful variation
+#
 #   Outputs: Prepared data for scenarios to be used in Rscripts 7.1 & 7.2
 #   - Prepared data separate by type, sp, and ecoregion to be using in Zonation scenarios 
-#
 #
 #    * ignore message "Discarded datum Unknown based on GRS80 ellipsoid in CRS 
 #       definition, but +towgs84= values preserved".
@@ -135,8 +138,15 @@ for(j in ecozones){ # multispecies inputs
       crop(., naturalAreasZ) %>%
       mask(., naturalAreasZ) %>%
       mask(., protectedAreasZ, inv=TRUE) %>% #Omit existing protected areas from analyses
-      scale(.) %>%
-      calc(., fun = rescaleR) %>%
+      scale(.)
+    habitatSuitabilityR <- habitatSuitability
+    values(habitatSuitabilityR) <- values(habitatSuitability) + rnorm(length(values(habitatSuitability)), 0, 0.001) # add random var to avoid ties
+    habitatSuitabilityR <- calc(habitatSuitabilityR, fun = rescaleR) %>%
+      calc(., fun = function(x){ifelse(x <= 1e-6, 0, x)}) #for prioritizer bug
+    nam3 <- paste0(species, "_habitatSuitabilityR")
+    assign(nam3, habitatSuitabilityR)
+    
+    habitatSuitability <- calc(habitatSuitability, fun = rescaleR) %>%
       calc(., fun = function(x){ifelse(x <= 1e-6, 0, x)}) #for prioritizer bug
     nam3 <- paste0(species, "_habitatSuitability")
     assign(nam3, habitatSuitability)
@@ -150,20 +160,30 @@ for(j in ecozones){ # multispecies inputs
         mask(., protectedAreasZ, inv=TRUE) %>% #Omit existing protected areas from analyses
         calc(., fun=function(x){ifelse(x==271, 1, NA)})
       
+      MAAM_habitatAreaR <- MAAM_habitatArea
+      
     }else{
       
       habitatArea <- raster(file.path(procDataDir, paste0(species, "_HabitatArea_FocalArea.tif"))) %>%
         crop(., naturalAreasZ) %>%
         mask(., naturalAreasZ) %>%
         mask(., protectedAreasZ, inv=TRUE) %>% #Omit existing protected areas from analyses
-        scale(.) %>%
-        calc(., fun = rescaleR) %>%
-        calc(., fun = function(x){ifelse(x <= 1e-6, 0, x)}) #for prioritizer bug
+        scale(.) 
+
+      habitatAreaR <- habitatArea
+      values(habitatAreaR) <- values(habitatArea) + rnorm(length(values(habitatArea)), 0, 0.001) # add random var to avoid ties
+      habitatAreaR <- calc(habitatAreaR, fun = rescaleR) %>%
+                      calc(., fun = function(x){ifelse(x <= 1e-6, 0, x)}) #for prioritizer bug
+      nam4R <- paste0(species, "_habitatAreaR")
+      assign(nam4R, habitatAreaR) 
+      
+      habitatArea <- calc(habitatArea, fun = rescaleR) %>%
+                    calc(., fun = function(x){ifelse(x <= 1e-6, 0, x)}) #for prioritizer bug
       nam4 <- paste0(species, "_habitatArea")
-      assign(nam4, habitatArea)
+      assign(nam4, habitatArea) 
     }
     
-    rm(density, habitatSuitability, habitatArea)
+    rm(density, habitatSuitability, habitatArea, habitatSuitabilityR, habitatAreaR)
     
   } # Finish species data loop
   
@@ -286,7 +306,7 @@ nammm1 <- paste0("ecoprofileHerbivore", j)
 assign(nammm1, ecoprofileHerbivore)
   
   
-## Collect intermediate data (will have 1,3,4 as suffix)
+## Collect intermediate data (will have 1,3,4 as suffix)-------------------------------------------------------
   
 # Combine species level inputs into stacks, by zone and feature type 
 Suitability <- stack(evaltext(specieslist, "_habitatSuitability"))  
@@ -294,11 +314,21 @@ names(Suitability) <- specieslist
 namm1 <- paste0("Suitability", j)
 assign(namm1, Suitability)
   
+SuitabilityR <- stack(evaltext(specieslist, "_habitatSuitabilityR"))  
+names(SuitabilityR) <- specieslist
+namm1 <- paste0("SuitabilityR", j)
+assign(namm1, SuitabilityR)
+
 Area <- stack(evaltext(specieslist, "_habitatArea"))  
 names(Area) <- specieslist
 namm2 <- paste0("Area", j)
 assign(namm2, Area)
-  
+
+AreaR <- stack(evaltext(specieslist, "_habitatAreaR"))  
+names(AreaR) <- specieslist
+namm2 <- paste0("AreaR", j)
+assign(namm2, AreaR)
+
 Density <- stack(evaltext(specieslist, "_density"))  
 names(Density) <- specieslist
 namm3 <- paste0("Density", j)
@@ -315,13 +345,24 @@ names(All) <- c(paste0(specieslist, "_habitatSuitability"),
                   paste0(specieslist, "_density"))
 namm4 <- paste0("All", j)
 assign(namm4, All)
+
+AllR <- c(evaltext(specieslist, "_habitatSuitabilityR"), 
+         evaltext(specieslist, "_habitatAreaR"),
+         evaltext(specieslist, "_density"))
+AllR <- stack(All)
+names(All) <- c(paste0(specieslist, "_habitatSuitabilityR"), 
+                paste0(specieslist, "_habitatAreaR"),
+                paste0(specieslist, "_density"))
+namm4 <- paste0("AllR", j)
+assign(namm4, AllR)
   
 } # Finish ecoregion loop
 
 
-## Combine transformed rasters into single map per feature type -------------------------------
+## Combine transformed rasters into single map per feature type -------------------------------------------
 
-  # For output of intermediate products 
+## For output of intermediate products 
+
 # Generic resistance map
 genericResAll <- mosaic(genericRes3, genericRes4, fun="max", na.rm=TRUE) %>%
   mosaic(., genericRes1, fun="max", na.rm=TRUE)
@@ -335,7 +376,7 @@ ResDensity <- stack(SumResDensity, MeanResDensity)
 names(ResDensity) <- c("SumResDensity", "MeanResDensity")
 
 # Current density calculated for ecoprofile resistances 
-# Scenario 1 taxonomy 
+  # Scenario 1 taxonomy 
 ecoprofileBird <- mosaic(ecoprofileBird3, ecoprofileBird4, fun="max", na.rm=TRUE) %>%
   mosaic(., ecoprofileBird1, fun="max", na.rm=TRUE)
 ecoprofileMammal <- mosaic(ecoprofileMammal3, ecoprofileMammal4, fun="max", na.rm=TRUE) %>%
@@ -344,7 +385,7 @@ ecoprofileAmphibian <- mosaic(ecoprofileAmphibian3, ecoprofileAmphibian4, fun="m
   mosaic(., ecoprofileAmphibian1, fun="max", na.rm=TRUE)
 ResTaxon <- stack(ecoprofileBird, ecoprofileMammal, ecoprofileAmphibian)
 names(ResTaxon) <- c("ecoprofileBird", "ecoprofileMammal", "ecoprofileAmphibian")
-# Scenario 2 trophic
+  # Scenario 2 trophic
 ecoprofileOmnivore <- mosaic(ecoprofileOmnivore3, ecoprofileOmnivore4, fun="max", na.rm=TRUE) %>%
   mosaic(., ecoprofileOmnivore1, fun="max", na.rm=TRUE)
 ecoprofileInsectivore <- mosaic(ecoprofileInsectivore3, ecoprofileInsectivore4, fun="max", na.rm=TRUE) %>%
@@ -376,12 +417,29 @@ names(All) <- c(paste0(specieslist, "_habitatSuitability"),
                 paste0(specieslist, "_habitatArea"),
                 paste0(specieslist, "_density"))
 
+# with random variation
+SuitabilityR <- mosaic(SuitabilityR3, SuitabilityR4, fun="max", na.rm=TRUE) %>%
+  mosaic(., SuitabilityR1, fun="max", na.rm=TRUE)
+names(SuitabilityR) <- specieslist
+
+AreaR <- mosaic(AreaR3, AreaR4, fun="max", na.rm=TRUE)%>%
+  mosaic(., AreaR1, fun="max", na.rm=TRUE)
+names(AreaR) <- specieslist
+
+DensityR <- Density
+
+AllR <- mosaic(AllR3, All4, fun="max", na.rm=TRUE) %>%
+  mosaic(., AllR1, fun="max", na.rm=TRUE)
+names(AllR) <- c(paste0(specieslist, "_habitatSuitabilityR"), 
+                paste0(specieslist, "_habitatAreaR"),
+                paste0(specieslist, "_densityR"))
+
 
 ## Output prepared files ----------------------------------------------------------
 
-  # Values are all scaled and standardized separately per ecoregion then merged into a complete map
+  # Output values are all scaled and standardized separately per ecoregion then merged into a complete map
   # Output rasterStacks of full Monteregie, w inputs for all scenarios with prioritizR analyses
-  # These are used for Rscripts 7.1-7.2
+  # Non-random versions are used for Rscripts 7.1-7.2
 writeRaster(genericResAll, 
             file.path(outDir,  "genericResAll.tif"), 
             overwrite=TRUE)  
@@ -394,6 +452,7 @@ writeRaster(ResTaxon,
 writeRaster(ResTrophic, 
             file.path(outDir,  "ResTrophic.tif"), 
             overwrite=TRUE) 
+
 writeRaster(Area, 
             file.path(outDir,  "Area.tif"), 
             overwrite=TRUE) 
@@ -407,7 +466,21 @@ writeRaster(All,
             file.path(outDir,  "All.tif"), 
             overwrite=TRUE) 
 
-  # Output the ecoregion shapefiles separately for species and input type 
+writeRaster(AreaR, 
+            file.path(outDir,  "AreaR.tif"), 
+            overwrite=TRUE) 
+writeRaster(DensityR, 
+            file.path(outDir,  "DensityR.tif"), 
+            overwrite=TRUE) 
+writeRaster(SuitabilityR, 
+            file.path(outDir,  "SuitabilityR.tif"), 
+            overwrite=TRUE) 
+writeRaster(AllR, 
+            file.path(outDir,  "AllR.tif"), 
+            overwrite=TRUE) 
+
+
+# Output the ecoregion shapefiles separately for species and input type as well
   # For Zonation inputs
 writeRaster(Suitability1, 
               file.path(outDir, "prioritizR", paste(specieslist, "Suitability", "ecoregion1.tif", sep="_")),
@@ -421,6 +494,19 @@ writeRaster(Suitability4,
             file.path(outDir, "prioritizR", paste(specieslist, "Suitability", "ecoregion4.tif", sep="_")),
             bylayer = TRUE,
             overwrite=TRUE)   
+writeRaster(SuitabilityR1, 
+            file.path(outDir, "prioritizR", paste(specieslist, "SuitabilityR", "ecoregion1.tif", sep="_")),
+            bylayer = TRUE,
+            overwrite=TRUE)
+writeRaster(SuitabilityR3, 
+            file.path(outDir, "prioritizR", paste(specieslist, "SuitabilityR", "ecoregion3.tif", sep="_")),
+            bylayer = TRUE,
+            overwrite=TRUE)            
+writeRaster(SuitabilityR4, 
+            file.path(outDir, "prioritizR", paste(specieslist, "SuitabilityR", "ecoregion4.tif", sep="_")),
+            bylayer = TRUE,
+            overwrite=TRUE)   
+
 #
 writeRaster(Density1, 
             file.path(outDir, "prioritizR", paste(specieslist, "Density", "ecoregion1.tif", sep="_")),
@@ -447,6 +533,19 @@ writeRaster(Area4,
             file.path(outDir, "prioritizR", paste(specieslist, "Area", "ecoregion4.tif", sep="_")),
             bylayer = TRUE,
             overwrite=TRUE)   
+
+writeRaster(AreaR1, 
+            file.path(outDir, "prioritizR", paste(specieslist, "AreaR", "ecoregion1.tif", sep="_")),
+            bylayer = TRUE,
+            overwrite=TRUE)
+writeRaster(AreaR3, 
+            file.path(outDir, "prioritizR", paste(specieslist, "AreaR", "ecoregion3.tif", sep="_")),
+            bylayer = TRUE,
+            overwrite=TRUE)            
+writeRaster(AreaR4, 
+            file.path(outDir, "prioritizR", paste(specieslist, "AreaR", "ecoregion4.tif", sep="_")),
+            bylayer = TRUE,
+            overwrite=TRUE) 
 
 
 ## End script
