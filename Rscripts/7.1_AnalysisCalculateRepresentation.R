@@ -29,6 +29,7 @@ library(purrr)
 setwd("c:/Users/carol/Dropbox/Documents/ApexRMS/Work/A238 - Multispecies Connectivity")
 
 ## Directories
+rawDataDir <- "Data/Raw"
 procDataDir <- "Data/Processed"
 outDir <- "Results/PrioritizationSolutions"
 
@@ -45,6 +46,7 @@ specieslist <- speciesID$Code
 ## Load feature files
 naturalAreasBinaryFocal <- raster(file.path(procDataDir, "LULCbinary_FocalArea.tif"))
 
+  # Use the feature layers without random variation to calculate actual representation
 Suitability <- stack(file.path(procDataDir, "PrioritizationInputs",  "Suitability.tif")) %>%
   crop(., naturalAreasBinaryFocal) %>%
   mask(., naturalAreasBinaryFocal) 
@@ -61,28 +63,6 @@ All <- stack(file.path(procDataDir, "PrioritizationInputs",  "All.tif")) %>%
   mask(., naturalAreasBinaryFocal) 
 
 ## Define parameters
-mapNames <- c("genericResSol",
-              "FinalEcoprofileTaxon",
-              "FinalEcoprofileTrophic",
-              "FinalSumResDensity",
-              "FinalMeanResDensity",
-              "sum_FinalSuitability",
-              "sum_FinalDensity",
-              "sum_FinalArea",
-              "sum_FinalAll",
-              "mean_FinalSuitability",
-              "mean_FinalDensity",
-              "mean_FinalArea",
-              "mean_FinalAll",
-              "minShortSuitSol",
-              "minShortDensitySol",
-              "minShortAreaSol",
-              "minShortAllSol",
-              "maxUtilitySuitSol",
-              "maxUtilityDensitySol",
-              "maxUtilityAreaSol",
-              "maxUtilityAllSol")
-
 properNames <- c("Generic-Resistance",
                  "Ecoprofile-Taxon",
                  "Ecoprofile-Trophic",
@@ -106,28 +86,25 @@ properNames <- c("Generic-Resistance",
                  "Maximum-Utility-Species-All")
 
 
-numModels = length(mapNames)
+numModels = length(properNames)
 numSpecies <- length(specieslist)
 
 ## Calculate representation of solution maps ----------------------------------------------------------------
 
 
-## Load solution maps per budget (for loop starts)
+# Load solution maps for each budget of interest (for loop starts)
 
 budgets <- c(0.05, 0.1, 0.17) 
-
 for(i in budgets){
-
-    path <- file.path(outDir, paste0("Allsolutions_", i, ".tif"))
+  
+  path <- file.path(outDir, paste0("Allsolutions_", i, ".tif"))
   
   outputAll <- stack(path)
-  names(outputAll) <- mapNames
+  names(outputAll) <- properNames
   
-## Calculate representation --------------------------------------------------------------------------
-    
   # Matrix in which to save representation values, col=models, rows=features
 allModelRep <- matrix(NA, nrow=(length(specieslist) * 3), ncol=numModels)
-colnames(allModelRep) <- mapNames
+colnames(allModelRep) <- properNames
 rownames(allModelRep) <- paste(specieslist, rep(c("Suit", "Density", "Area"), each=14), sep="_")
 
   # Per model output, extract total amount of each feature included in solution
@@ -159,9 +136,6 @@ for(m in 1:numModels){
   } #End model loop
 
 assign(paste0("allModelRep", i), allModelRep)  # for outputs
-suitAll <- allModelRep[1:numSpecies, ]
-densAll <- allModelRep[(numSpecies+1):(2*numSpecies), ]
-areaAll <- allModelRep[(2*numSpecies+1):(3*numSpecies), ]
 
 
 ## Save representation table

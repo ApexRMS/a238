@@ -6,7 +6,7 @@
 #	  1.Inputs:                                   
 #    -solution raster layers 
 #    - 1 raster stack per target budget 
-#                                                                   
+#    2. Calculate correlations and generate plots                                                                
 # Script by C Tucker for ApexRMS 									
 #####################################################################
 
@@ -25,6 +25,7 @@ library(purrr)
 setwd("c:/Users/carol/Dropbox/Documents/ApexRMS/Work/A238 - Multispecies Connectivity")
 
 ## Directories
+rawDataDir <- "Data/Raw"
 procDataDir <- "Data/Processed"
 outDir <- "Results/PrioritizationSolutions"
 
@@ -130,8 +131,9 @@ for(i in budgets){
 
 } # end budget loop
 
-corrplot(cors0.17, "ellipse", "upper", tl.cex=0.65, diag=FALSE)
-corrplot(cors0.17, "number", "upper", number.cex=0.65, tl.cex=0.65, diag=FALSE)
 
-corrplot(corsDensity0.17, "number", "upper", number.cex=0.65, tl.cex=0.65, diag=FALSE)
+# Example plots
+corrplot(cors, "ellipse", "upper", tl.cex=0.65, diag=FALSE)
+corrplot(cors, "number", "upper", number.cex=0.65, tl.cex=0.65, diag=FALSE)
+corrplot(corsDensity, "number", "upper", number.cex=0.65, tl.cex=0.65, diag=FALSE)
 
