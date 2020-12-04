@@ -54,7 +54,10 @@ listOfFilesToWrite <- paste0("Results/MultipliersProcessed/", names(listOfProces
 mapply(listOfProcessedMultpliers, listOfFilesToWrite, FUN=writeRaster, overwrite=TRUE)
 
 # Create subscenario for each, then combine these with the other scenarios
-for (mult in listOfProcessedMultpliers){
+# Here we only do 2 as a test
+listOfProcessedMultpliersSUBSET <- listOfProcessedMultpliers[1:2]
+
+for (mult in listOfProcessedMultpliersSUBSET){
   mySce <- Scenario(myproj, names(mult))
   theDatasheet <- 
     data.frame(TransitionGroupID = c("Urbanisation"), 
