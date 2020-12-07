@@ -58,13 +58,50 @@ mapply(listOfProcessedMultpliers, listOfFilesToWrite, FUN=writeRaster, overwrite
 listOfProcessedMultpliersSUBSET <- listOfProcessedMultpliers[1:2]
 
 for (mult in listOfProcessedMultpliersSUBSET){
-  mySce <- Scenario(myproj, names(mult))
+  mySce <- scenario(myproj, names(mult))
   theDatasheet <- 
-    data.frame(TransitionGroupID = c("Urbanisation"), 
-               MultiplierFileName = paste0(getwd(),"Results/MultipliersProcessed/", 
+    data.frame(TransitionGroupID = c("Agricultural Expansion and Urbanization"), 
+               MultiplierFileName = paste0(getwd(),"/Results/MultipliersProcessed/", 
                                            names(mult), ".tif"))
   saveDatasheet(ssimObject = mySce, data = theDatasheet, name = 'stsim_TransitionSpatialMultiplier')
 }
 
 # Now combine these subscenario with the climate and land use in order to produce full scenarios
-## TODO
+
+# First step: list scenarios that are common in all scnearios
+# WARNING: This assumes we are using targets given the fact that we did not 
+#          make the multipliers work.
+commonSet <- list(RunControl = 220, 
+                  IniCond = 149, 
+                  OutOpt = 8, 
+                  TrAdj = 13, 
+                  StAtrr = 14, 
+                  TrSiz = 15, 
+                  TSTr = 16)
+species14Set <- c(HabSuit = 201, HabPat = 203, Res = 204)
+
+# Second, the 2 land use change scenarios
+lucSet <- list(noLULC = 6, historicLULC = 7)
+
+# Third, the climate change scenarios
+ccSet <- list(baseline = 9, rcp45 = 97, rcp85 = 98)
+
+# Loop and create the full scenarios
+
+for (mult in listOfProcessedMultpliersSUBSET){
+  for (lu in names(lucSet)){
+    for (cc in names(ccSet)){
+      
+      # Create name
+      scenarioName <- paste(names(mult), lu, cc,  sep= "_")
+      print(scenarioName)
+      
+      # Create the scenario
+      tempSce <- scenario(myproj, scenarioName)
+      
+      # Set dependencies
+      dependency(tempSce, unlist(c(commonSet, species14Set, 
+                                   lucSet[[lu]], ccSet[[cc]])))
+    }
+  }
+}
