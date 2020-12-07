@@ -55,10 +55,10 @@ mapply(listOfProcessedMultpliers, listOfFilesToWrite, FUN=writeRaster, overwrite
 
 # Create subscenario for each, then combine these with the other scenarios
 # Here we only do 2 as a test
-listOfProcessedMultpliersSUBSET <- listOfProcessedMultpliers[1:2]
+listOfProcessedMultpliersSUBSET <- listOfProcessedMultpliers[1]
 
 for (mult in listOfProcessedMultpliersSUBSET){
-  mySce <- scenario(myproj, names(mult))
+  mySce <- scenario(myproj, names(mult), overwrite = TRUE)
   theDatasheet <- 
     data.frame(TransitionGroupID = c("Agricultural Expansion and Urbanization"), 
                MultiplierFileName = paste0(getwd(),"/Results/MultipliersProcessed/", 
@@ -97,7 +97,7 @@ for (mult in listOfProcessedMultpliersSUBSET){
       print(scenarioName)
       
       # Create the scenario
-      tempSce <- scenario(myproj, scenarioName)
+      tempSce <- scenario(myproj, scenarioName, overwrite = TRUE)
       
       # Set dependencies
       dependency(tempSce, unlist(c(commonSet, species14Set, 
