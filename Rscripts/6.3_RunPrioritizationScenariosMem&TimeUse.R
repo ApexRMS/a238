@@ -52,7 +52,7 @@ setwd("c:/Users/carol/Dropbox/Documents/ApexRMS/Work/A238 - Multispecies Connect
 ## Directories
 rawDataDir <- "Data/Raw"
 procDataDir <- "Data/Processed"
-inputDir <- "Data/Processed/PrioritizationInputs"
+inputDir <- "Data/Processed/PrioritizrInputs"
 outDir <- "Results/PrioritizationSolutions"
 
 ## Functions 

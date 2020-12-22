@@ -41,7 +41,7 @@ setwd("c:/Users/carol/Dropbox/Documents/ApexRMS/Work/A238 - Multispecies Connect
 ## Directories
 rawDataDir <- "Data/Raw"
 procDataDir <- "Data/Processed"
-outDir <- "Data/Processed/PrioritizationInputs"
+outDir <- "Data/Processed/PrioritizrInputs"
 
 ## Functions 
 rescaleR <- function(x, new.min = 0, new.max = 1) {
