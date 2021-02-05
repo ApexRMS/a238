@@ -1,0 +1,37 @@
+[Settings]
+removal rule = 2
+warp factor = 1
+edge removal = 0
+add edge points = 0
+use SSI = 0
+SSI file name = tutorial_input/SSI_list.txt
+use planning unit layer = 0
+planning unit layer file = tutorial_input/PLU_file.asc
+initial removal percent = 0.0
+
+use cost = 0
+cost file = tutorial_input/cost.asc
+use mask = 1
+mask file = file_name
+use boundary quality penalty = 0
+BQP profiles file = tutorial_input/BQPcurves.txt
+BQP mode = 1
+BLP = 0
+use tree connectivity = 0
+tree connectivity file = tutorial_input/tree.txt
+use interactions = 0
+interaction file = tutorial_input/interact.spp
+
+annotate name = 0
+logit space = 0
+treat zero-areas as missing data = 0
+z = 0.25
+resample species = 0
+mask missing areas = 1
+area mask file = file_name
+
+[Info-gap settings]
+Info-gap proportional = 0
+use info-gap weights  = 0
+Info-gap weights file = tutorial_input/UCweights.spp
+
