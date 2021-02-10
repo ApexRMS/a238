@@ -64,7 +64,7 @@ for(i in 1:length(cellRemovalRuleNameList)){
   cellRemovalRuleName <- cellRemovalRuleNameList[i]
   cellRemovalRule <- cellRemovalRuleList[i]
   
-  # Loop over all ecoreions
+  # Loop over all ecoregions
   for(ecoregionID in ecoregionList){ 
     # Create run settings file  
     zonationSet <- zonationSetTemplate
@@ -74,7 +74,7 @@ for(i in 1:length(cellRemovalRuleNameList)){
     zonationSet[30] <- "mask missing areas = 1"
     zonationSet[31] <- paste("area mask file =", file.path(zonationInputDir, paste0("zonation_UnprotectedNaturalAreas_ecoregion", ecoregionID, ".tif")))
     # Name the run settings file tagged by ecoregion
-    zonationSetName <- file.path(getwd(), zonationInputDir, paste0("RunSetting_ecoregion", ecoregionID, ".dat"))
+    zonationSetName <- file.path(getwd(), zonationInputDir, paste0("RunSetting_", cellRemovalRuleName, "_ecoregion", ecoregionID, ".dat"))
     writeLines(zonationSet, zonationSetName)
     
     # Loop over all conservation criteria individually and then all together ("All") 
@@ -106,7 +106,7 @@ for(i in 1:length(cellRemovalRuleNameList)){
       # Create batch file to run Zonation for this cell removal rule, criteria, and ecoregion
       zonationOutName <- file.path(getwd(), zonationOutputDir, paste0(cellRemovalRuleName, "_", criterion, "_ecoregion", ecoregionID, ".txt"))
       zonationScenario <- paste0("-r ", "\"", zonationSetName, "\" ", "\"", zonationSppName, "\" ", "\"", zonationOutName, "\" ", "0.0 0 1.0 0")
-      zonationScenarioName <- file.path(getwd(), zonationOutputDir, paste0("ZonationScenario_", cellRemovalRuleName, "_", criterion, "_ecoregion", ecoregionID, ".bat"))
+      zonationScenarioName <- file.path(getwd(), zonationInputDir, paste0("ZonationScenario_", cellRemovalRuleName, "_", criterion, "_ecoregion", ecoregionID, ".bat"))
       writeLines(zonationScenario, zonationScenarioName)
       
       # Run Zonation
@@ -115,30 +115,36 @@ for(i in 1:length(cellRemovalRuleNameList)){
   } # ecoregion
 } # cell removal rule
 
-# Loop through all conservation criteria individually and all together
-# Loop through all area target levels
-for(criterion in c(criteriaList, "All")){
-  # Read 3 ecoregion files
-  er1 <- raster(file.path(zonationOutputDir, paste0(cellRemovalRuleName, "_", criterion, "_ecoregion1.rank.compressed.tif")))
-  er3 <- raster(file.path(zonationOutputDir, paste0(cellRemovalRuleName, "_", criterion, "_ecoregion3.rank.compressed.tif")))
-  er4 <- raster(file.path(zonationOutputDir, paste0(cellRemovalRuleName, "_", criterion, "_ecoregion4.rank.compressed.tif")))
-  
-  for(areaTarget in areaTargetList){  
-    # Create binary solutions corresponding to area target
-    er1Target <- Which(er1 >= (1-(pull(targetSummary %>% filter(ID==1) %>% dplyr::select(paste0('TargetNaturalAreaPercent', areaTarget)))/100)))
-    er3Target <- Which(er3 >= (1-pull(targetSummary %>% filter(ID==3) %>% dplyr::select(paste0('TargetNaturalAreaPercent', areaTarget)))/100))
-    er4Target <- Which(er4 >= (1-pull(targetSummary %>% filter(ID==4) %>% dplyr::select(paste0('TargetNaturalAreaPercent', areaTarget)))/100))
+
+# Loop over all cell removal rules
+for(i in 1:length(cellRemovalRuleNameList)){
+  cellRemovalRuleName <- cellRemovalRuleNameList[i]
+  cellRemovalRule <- cellRemovalRuleList[i]
+  # Loop through all conservation criteria individually and all together
+  # Loop through all area target levels
+  for(criterion in c(criteriaList, "All")){
+    # Read 3 ecoregion files
+    er1 <- raster(file.path(zonationOutputDir, paste0(cellRemovalRuleName, "_", criterion, "_ecoregion1.rank.compressed.tif")))
+    er3 <- raster(file.path(zonationOutputDir, paste0(cellRemovalRuleName, "_", criterion, "_ecoregion3.rank.compressed.tif")))
+    er4 <- raster(file.path(zonationOutputDir, paste0(cellRemovalRuleName, "_", criterion, "_ecoregion4.rank.compressed.tif")))
     
-    # Combine all ecoregion solutions together
-    erAllTarget <- mosaic(er3Target, er4Target, fun="max", na.rm=TRUE) %>%
-      mosaic(., er1Target,  fun="max", na.rm=TRUE) %>%
-      crop(., unprotectedNaturalAreasFocal) %>%
-      mask(., unprotectedNaturalAreasFocal)
-    
-    # Save one solution for each cell removal rule, conservation criteria, and target level
-    writeRaster(erAllTarget, file.path(zonationOutputDir, paste0(cellRemovalRuleName, "_", criterion, "_", areaTarget, ".tif")), overwrite=T)
-  }
-}
+    for(areaTarget in areaTargetList){  
+      # Create binary solutions corresponding to area target
+      er1Target <- Which(er1 >= (1-(pull(targetSummary %>% filter(ID==1) %>% dplyr::select(paste0('TargetNaturalAreaPercent', areaTarget)))/100)))
+      er3Target <- Which(er3 >= (1-pull(targetSummary %>% filter(ID==3) %>% dplyr::select(paste0('TargetNaturalAreaPercent', areaTarget)))/100))
+      er4Target <- Which(er4 >= (1-pull(targetSummary %>% filter(ID==4) %>% dplyr::select(paste0('TargetNaturalAreaPercent', areaTarget)))/100))
+      
+      # Combine all ecoregion solutions together
+      erAllTarget <- mosaic(er3Target, er4Target, fun="max", na.rm=TRUE) %>%
+        mosaic(., er1Target,  fun="max", na.rm=TRUE) %>%
+        crop(., unprotectedNaturalAreasFocal) %>%
+        mask(., unprotectedNaturalAreasFocal)
+      
+      # Save one solution for each cell removal rule, conservation criteria, and target level
+      writeRaster(erAllTarget, file.path(zonationOutputDir, paste0(cellRemovalRuleName, "_", criterion, "_", areaTarget, ".tif")), overwrite=T)
+    } # conservation criteria
+  } # target level
+} # cell removal rule
 
 
 # Not used
