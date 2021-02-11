@@ -7,20 +7,20 @@ library(raster)
 library(stringr)
 
 # Lib
-mylib <- ssimLibrary("libraries/BTSL_stconnect.ssim/BTSL_stconnect.ssim")
+mylib <- ssimLibrary("Simulations/Monteregie_stconnect.ssim")
 myproj <- project(mylib, "Definitions")
 
-# Input folders for priorization files
-inputFolders <- c("Results/MapsBudget0.17/", "Results/MapsBudget0.1/")
-
-# Read list of files 
-listOfFiles <- unlist(lapply(inputFolders, list.files, full.names=T), recursive = F)
+# MSC methods
+mscList <- c("Outputs/PrioritizationSolutions/MapsBudget0.05/CAZ_All_0.05.tif",
+             "Outputs/PrioritizationSolutions/MapsBudget0.05/Sum-Species-All0.05.tif",
+             "Outputs/PrioritizationSolutions/MapsBudget0.17/CAZ_All_0.17.tif",
+             "Outputs/PrioritizationSolutions/MapsBudget0.17/Sum-Species-All0.17.tif")
 
 # Reclassficfication matrix
 reclassMatrix <- matrix(c(0,1,1,0), 2, 2)
 
 # Read the current multpliers
-protectedAreas <- raster("Data/stsim/protectedAreas_FocalAreaBuffer.tif")
+protectedAreas <- raster("Data/Processed/spatialMultiplier_ProtectedAreas_FocalArea.tif")
 
 # Process the multipliers -------------------------------------------------
 
@@ -44,24 +44,23 @@ processMultipliers <- function(file_name,
 }
 
 # Process all files
-listOfProcessedMultpliers <- lapply(listOfFiles, processMultipliers, 
+listOfProcessedMultpliers <- lapply(mscList, processMultipliers, 
                                     reclassMatrix = reclassMatrix,
                                     match_combine = protectedAreas)
 names(listOfProcessedMultpliers) <- unlist(lapply(listOfProcessedMultpliers , names))
 
 # Write the files out
-listOfFilesToWrite <- paste0("Results/MultipliersProcessed/", names(listOfProcessedMultpliers), ".tif")
+listOfFilesToWrite <- paste0("Outputs/SpatialMultipliers/", names(listOfProcessedMultpliers), ".tif")
 mapply(listOfProcessedMultpliers, listOfFilesToWrite, FUN=writeRaster, overwrite=TRUE)
 
 # Create subscenario for each, then combine these with the other scenarios
 # Here we only do 2 as a test
-listOfProcessedMultpliersSUBSET <- listOfProcessedMultpliers[1]
 
-for (mult in listOfProcessedMultpliersSUBSET){
+for (mult in listOfProcessedMultpliers){
   mySce <- scenario(myproj, names(mult), overwrite = TRUE)
   theDatasheet <- 
     data.frame(TransitionGroupID = c("Agricultural Expansion and Urbanization"), 
-               MultiplierFileName = paste0(getwd(),"/Results/MultipliersProcessed/", 
+               MultiplierFileName = paste0(getwd(),"/Outputs/SpatialMultipliers/", 
                                            names(mult), ".tif"))
   saveDatasheet(ssimObject = mySce, data = theDatasheet, name = 'stsim_TransitionSpatialMultiplier')
 }
@@ -72,7 +71,7 @@ for (mult in listOfProcessedMultpliersSUBSET){
 # WARNING: This assumes we are using targets given the fact that we did not 
 #          make the multipliers work.
 commonSet <- list(RunControl = 220, 
-                  IniCond = 149, 
+                  IniCond = 247, 
                   OutOpt = 8, 
                   TrAdj = 13, 
                   StAtrr = 14, 
@@ -84,11 +83,11 @@ species14Set <- c(HabSuit = 201, HabPat = 203, Res = 204)
 lucSet <- list(noLULC = 6, historicLULC = 7)
 
 # Third, the climate change scenarios
-ccSet <- list(baseline = 9, rcp45 = 97, rcp85 = 98)
+ccSet <- list(baseline = 9, rcp85 = 98) #rcp45 = 97, 
 
 # Loop and create the full scenarios
 
-for (mult in listOfProcessedMultpliersSUBSET){
+for (mult in listOfProcessedMultpliers){
   for (lu in names(lucSet)){
     for (cc in names(ccSet)){
       
