@@ -72,7 +72,8 @@ for (mult in listOfProcessedMultpliers){
 #          make the multipliers work.
 commonSet <- list(RunControl = 220, 
                   IniCond = 247, 
-                  OutOpt = 8, 
+                  OutOpt = 8,
+                  TrPath = 4,
                   TrAdj = 13, 
                   StAtrr = 14, 
                   TrSiz = 15, 
@@ -80,7 +81,7 @@ commonSet <- list(RunControl = 220,
 species14Set <- c(HabSuit = 201, HabPat = 203, Res = 204)
 
 # Second, the 2 land use change scenarios
-lucSet <- list(noLULC = 6, historicLULC = 7)
+lucSet <- list(historicLULC = 7) #noLULC = 6, 
 
 # Third, the climate change scenarios
 ccSet <- list(baseline = 9, rcp85 = 98) #rcp45 = 97, 
@@ -104,3 +105,26 @@ for (mult in listOfProcessedMultpliers){
     }
   }
 }
+
+
+# Loop and run the full scenarios
+
+for (mult in listOfProcessedMultpliers){
+  for (lu in names(lucSet)){
+    for (cc in names(ccSet)){
+      
+      # Create name
+      scenarioName <- paste(names(mult), lu, cc,  sep= "_")
+      print(scenarioName)
+
+      run(myproj, scenario = scenarioName, jobs = 5)      
+    }
+  }
+}
+
+
+run(myproj, scenario = "PA2010_historicLULC_baseline", jobs = 5)      
+run(myproj, scenario = "PA2010_historicLULC_rcp85", jobs = 5)      
+run(myproj, scenario = "Sum_Species_All0.17_historicLULC_baseline", jobs = 5)      
+run(myproj, scenario = "CAZ_All_0.17_historicLULC_baseline", jobs = 5)      
+run(myproj, scenario = "Sum_Species_All0.05_historicLULC_baseline", jobs = 5)      
