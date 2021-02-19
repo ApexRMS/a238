@@ -7,14 +7,19 @@ library(raster)
 library(stringr)
 
 # Lib
-mylib <- ssimLibrary("Simulations/Monteregie_stconnect.ssim")
+mySession <- "F:/2.2.7/SyncroSim.Console.exe"
+mylib <- ssimLibrary("Simulations/Monteregie_stconnect.ssim", session = mySession)
 myproj <- project(mylib, "Definitions")
 
 # MSC methods
-mscList <- c("Outputs/PrioritizationSolutions/MapsBudget0.05/CAZ_All_0.05.tif",
-             "Outputs/PrioritizationSolutions/MapsBudget0.05/Sum-Species-All0.05.tif",
-             "Outputs/PrioritizationSolutions/MapsBudget0.17/CAZ_All_0.17.tif",
-             "Outputs/PrioritizationSolutions/MapsBudget0.17/Sum-Species-All0.17.tif")
+mscList <- c("Outputs/PrioritizationSolutions/MapsBudget0.1/Generic-Resistance0.1.tif",
+             "Outputs/PrioritizationSolutions/MapsBudget0.1/Minimize-Shortfall-Species-All0.1.tif")
+
+"Outputs/PrioritizationSolutions/MapsBudget0.1/Ecoprofile-Trophic0.1.tif",
+"Outputs/PrioritizationSolutions/MapsBudget0.1/CAZ_Density_0.1.tif",
+"Outputs/PrioritizationSolutions/MapsBudget0.1/Sum-Species-Density0.1.tif",
+"Outputs/PrioritizationSolutions/MapsBudget0.1/CAZ_All_0.1.tif",
+"Outputs/PrioritizationSolutions/MapsBudget0.1/Sum-Species-All0.1.tif",
 
 # Reclassficfication matrix
 reclassMatrix <- matrix(c(0,1,1,0), 2, 2)
@@ -54,28 +59,32 @@ listOfFilesToWrite <- paste0("Outputs/SpatialMultipliers/", names(listOfProcesse
 mapply(listOfProcessedMultpliers, listOfFilesToWrite, FUN=writeRaster, overwrite=TRUE)
 
 # Create subscenario for each, then combine these with the other scenarios
-# Here we only do 2 as a test
-
-for (mult in listOfProcessedMultpliers){
-  mySce <- scenario(myproj, names(mult), overwrite = TRUE)
+for (mult in names(listOfProcessedMultpliers)){
+  mySce <- scenario(myproj, mult, overwrite = TRUE)
   theDatasheet <- 
     data.frame(TransitionGroupID = c("Agricultural Expansion and Urbanization"), 
                MultiplierFileName = paste0(getwd(),"/Outputs/SpatialMultipliers/", 
-                                           names(mult), ".tif"))
+                                           mult, ".tif"))
   saveDatasheet(ssimObject = mySce, data = theDatasheet, name = 'stsim_TransitionSpatialMultiplier')
 }
+
+# Get scenario id's for multipliers
+multSet <- list()
+for (mult in names(listOfProcessedMultpliers)){
+  multSet<-c(multSet, scenarioId(scenario(myproj, mult)))
+}
+names(multSet) <- names(listOfProcessedMultpliers)
 
 # Now combine these subscenario with the climate and land use in order to produce full scenarios
 
 # First step: list scenarios that are common in all scnearios
-# WARNING: This assumes we are using targets given the fact that we did not 
-#          make the multipliers work.
-commonSet <- list(RunControl = 220, 
+commonSet <- list(RunControl = 370, 
                   IniCond = 247, 
                   OutOpt = 8,
                   TrPath = 4,
                   TrAdj = 13, 
-                  StAtrr = 14, 
+                  StAtrr = 14,
+                  TrAttr = 321,
                   TrSiz = 15, 
                   TSTr = 16)
 species14Set <- c(HabSuit = 201, HabPat = 203, Res = 204)
@@ -84,16 +93,16 @@ species14Set <- c(HabSuit = 201, HabPat = 203, Res = 204)
 lucSet <- list(historicLULC = 7) #noLULC = 6, 
 
 # Third, the climate change scenarios
-ccSet <- list(baseline = 9, rcp85 = 98) #rcp45 = 97, 
+ccSet <- list(baseline = 9) #rcp45 = 97, rcp85 = 98) 
 
 # Loop and create the full scenarios
 
-for (mult in listOfProcessedMultpliers){
+for (mult in names(multSet)){
   for (lu in names(lucSet)){
     for (cc in names(ccSet)){
       
       # Create name
-      scenarioName <- paste(names(mult), lu, cc,  sep= "_")
+      scenarioName <- paste(mult, lu, cc,  sep= "_")
       print(scenarioName)
       
       # Create the scenario
@@ -101,30 +110,69 @@ for (mult in listOfProcessedMultpliers){
       
       # Set dependencies
       dependency(tempSce, unlist(c(commonSet, species14Set, 
-                                   lucSet[[lu]], ccSet[[cc]])))
+                                   lucSet[lu], ccSet[cc], multSet[mult])))
     }
   }
 }
 
 
 # Loop and run the full scenarios
-
-for (mult in listOfProcessedMultpliers){
+for (mult in names(listOfProcessedMultpliers)){
   for (lu in names(lucSet)){
     for (cc in names(ccSet)){
       
       # Create name
-      scenarioName <- paste(names(mult), lu, cc,  sep= "_")
+      scenarioName <- paste(mult, lu, cc,  sep= "_")
       print(scenarioName)
 
-      run(myproj, scenario = scenarioName, jobs = 5)      
+      run(myproj, scenario = scenarioName, jobs = 3)      
     }
   }
 }
 
 
-run(myproj, scenario = "PA2010_historicLULC_baseline", jobs = 5)      
-run(myproj, scenario = "PA2010_historicLULC_rcp85", jobs = 5)      
-run(myproj, scenario = "Sum_Species_All0.17_historicLULC_baseline", jobs = 5)      
-run(myproj, scenario = "CAZ_All_0.17_historicLULC_baseline", jobs = 5)      
-run(myproj, scenario = "Sum_Species_All0.05_historicLULC_baseline", jobs = 5)      
+# Baseline scenario
+# Create the scenario
+scenarioName <- "PA2010_historicLULC_baseline"
+tmpSce <- scenario(myproj, scenarioName, overwrite = TRUE)
+PA2010scenarioID <- list(SpTrMult = 248)
+# Set dependencies
+dependency(tmpSce, unlist(c(commonSet, species14Set, 
+                                  lucSet[lu], ccSet[cc], PA2010scenarioID)))
+# Run
+run(myproj, scenario = scenarioName, jobs = 3)
+
+# # No longer used
+# # Set up to run habitat sitability transformer separately
+# for (mult in listOfProcessedMultpliers){
+#   for (lu in names(lucSet)){
+#     for (cc in names(ccSet)){
+#       
+#       # Create name
+#       scenarioName <- paste("Habitat", names(mult), lu, cc,  sep= "_")
+#       print(scenarioName)
+#       
+#       # Create the scenario
+#       tempSce <- scenario(myproj, scenarioName, overwrite = TRUE)
+#       
+#       # Set dependencies
+#       dependency(tempSce, c(scenarioName, "Habitat Suitability: Basic Landcover and Forest Age - 14 species"))
+#     }
+#   }
+# }
+# 
+# for (mult in listOfProcessedMultpliers){
+#   for (lu in names(lucSet)){
+#     for (cc in names(ccSet)){
+#       
+#       # Create name
+#       scenarioName <- paste("Habitat", names(mult), lu, cc,  sep= "_")
+#       print(scenarioName)
+#       
+#       run(myproj, scenario = scenarioName, jobs = 3, transformerName = "stconnect_HabitatSuitability")      
+#     }
+#   }
+# }
+# 
+
+run(myproj, scenario = "PA2010_historicLULC_baseline", jobs = 3, transformerName = "stconnect_STSimWrapper")
