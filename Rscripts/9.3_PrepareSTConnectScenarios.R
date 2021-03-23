@@ -13,13 +13,13 @@ myproj <- project(mylib, "Definitions")
 
 # MSC methods
 mscList <- c("Outputs/PrioritizationSolutions/MapsBudget0.1/Generic-Resistance0.1.tif",
-             "Outputs/PrioritizationSolutions/MapsBudget0.1/Minimize-Shortfall-Species-All0.1.tif")
+             "Outputs/PrioritizationSolutions/MapsBudget0.1/Ecoprofile-Trophic0.1.tif",
+             "Outputs/PrioritizationSolutions/MapsBudget0.1/CAZ_Density_0.1.tif",
+             "Outputs/PrioritizationSolutions/MapsBudget0.1/Sum-Species-Density0.1.tif",
+             "Outputs/PrioritizationSolutions/MapsBudget0.1/CAZ_All_0.1.tif",
+             "Outputs/PrioritizationSolutions/MapsBudget0.1/Sum-Species-All0.1.tif")
 
-"Outputs/PrioritizationSolutions/MapsBudget0.1/Ecoprofile-Trophic0.1.tif",
-"Outputs/PrioritizationSolutions/MapsBudget0.1/CAZ_Density_0.1.tif",
-"Outputs/PrioritizationSolutions/MapsBudget0.1/Sum-Species-Density0.1.tif",
-"Outputs/PrioritizationSolutions/MapsBudget0.1/CAZ_All_0.1.tif",
-"Outputs/PrioritizationSolutions/MapsBudget0.1/Sum-Species-All0.1.tif",
+"Outputs/PrioritizationSolutions/MapsBudget0.1/Minimize-Shortfall-Species-All0.1.tif", 
 
 # Reclassficfication matrix
 reclassMatrix <- matrix(c(0,1,1,0), 2, 2)
@@ -125,7 +125,7 @@ for (mult in names(listOfProcessedMultpliers)){
       scenarioName <- paste(mult, lu, cc,  sep= "_")
       print(scenarioName)
 
-      run(myproj, scenario = scenarioName, jobs = 3)      
+      run(myproj, scenario = scenarioName, jobs = 5)      
     }
   }
 }
